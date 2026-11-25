@@ -1,0 +1,2805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Solectrik Energy CRM & PagarBook Payroll</title>
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- FontAwesome Icons via CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <!-- Google Font: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            slateDark: '#0f172a',
+            solar: {
+              50: '#fffbeb',
+              100: '#fef3c7',
+              400: '#fbbf24',
+              500: '#f59e0b',
+              600: '#d97706',
+              700: '#b45309'
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    /* Custom scrollbar & print styling for payslips */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    @media print {
+      body * { visibility: hidden; }
+      #payslip-printable, #payslip-printable * { visibility: visible; }
+      #payslip-printable {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        background: #ffffff;
+        padding: 24px;
+        z-index: 9999;
+      }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased selection:bg-amber-200 selection:text-slate-900">
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-[100] flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- Main App Wrapper -->
+  <div class="min-h-screen flex flex-col lg:flex-row">
+
+    <!-- ==================== ADMIN SIDEBAR ==================== -->
+    <aside id="admin-sidebar" class="fixed inset-y-0 left-0 z-40 w-64 bg-[#0f172a] text-slate-200 flex flex-col transition-transform duration-200 -translate-x-full lg:translate-x-0 lg:static lg:shrink-0 shadow-xl">
+      <!-- Brand Header -->
+      <div class="h-16 px-5 flex items-center justify-between border-b border-slate-800">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-slate-950 shadow-lg shadow-amber-500/20">
+            <i class="fa-solid fa-solar-panel text-base"></i>
+          </div>
+          <div>
+            <div class="font-bold text-white tracking-tight leading-tight text-sm">SOLECTRIK ENERGY</div>
+            <div class="text-[11px] text-amber-400 font-medium">Solar EPC &amp; PagarBook</div>
+          </div>
+        </div>
+        <button onclick="toggleMobileSidebar(false)" class="lg:hidden text-slate-400 hover:text-white p-1.5 rounded-lg">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Navigation Links -->
+      <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
+        <div class="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Core Workspace</div>
+        <button data-nav="overview" onclick="navigateAdmin('overview')" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all">
+          <i class="fa-solid fa-chart-pie w-5 text-center"></i>
+          <span>Overview Dashboard</span>
+        </button>
+        <button data-nav="payroll" onclick="navigateAdmin('payroll')" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all">
+          <i class="fa-solid fa-book-open-reader w-5 text-center"></i>
+          <span>Staff &amp; Payroll</span>
+          <span class="ml-auto text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-400 font-semibold">Khata</span>
+        </button>
+        <button data-nav="leads" onclick="navigateAdmin('leads')" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all">
+          <i class="fa-solid fa-bullseye w-5 text-center"></i>
+          <span>Leads &amp; Work Audit</span>
+        </button>
+        <button data-nav="projects" onclick="navigateAdmin('projects')" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all">
+          <i class="fa-solid fa-bolt w-5 text-center"></i>
+          <span>Solar Projects</span>
+        </button>
+      </nav>
+
+      <!-- Sidebar Footer -->
+      <div class="p-4 border-t border-slate-800 space-y-2.5">
+        <div class="bg-slate-800/70 rounded-xl p-3 border border-slate-700/60">
+          <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+            <span>Billing Cycle</span>
+            <span id="sidebar-month-label" class="text-amber-400 font-semibold"></span>
+          </div>
+          <div class="text-[11px] text-slate-400">KVM Web CRM • Local Sync Active</div>
+        </div>
+        <button onclick="openResetConfirmModal()" class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-colors">
+          <i class="fa-solid fa-rotate-left"></i>
+          <span>Reset Demo Data</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Mobile Sidebar Backdrop -->
+    <div id="sidebar-backdrop" onclick="toggleMobileSidebar(false)" class="fixed inset-0 bg-slate-950/60 z-30 hidden lg:hidden backdrop-blur-xs"></div>
+
+    <!-- ==================== MAIN CONTENT AREA ==================== -->
+    <div class="flex-1 flex flex-col min-w-0">
+
+      <!-- Top Header Bar -->
+      <header class="sticky top-0 z-20 h-16 bg-white/95 backdrop-blur border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3 min-w-0">
+          <button id="mobile-menu-btn" onclick="toggleMobileSidebar(true)" class="lg:hidden p-2 rounded-xl text-slate-600 hover:bg-slate-100">
+            <i class="fa-solid fa-bars text-lg"></i>
+          </button>
+          <div class="truncate">
+            <h1 id="header-page-title" class="text-base sm:text-lg font-bold text-slate-900 truncate">Overview Dashboard</h1>
+            <p id="header-date-subtitle" class="text-xs text-slate-500 hidden sm:block"></p>
+          </div>
+        </div>
+
+        <!-- Prominent View Switcher Toggle -->
+        <div class="flex items-center gap-2 shrink-0">
+          <div class="bg-slate-100 p-1 rounded-xl border border-slate-200 flex items-center">
+            <button id="btn-mode-admin" onclick="switchAppMode('admin')" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5">
+              <i class="fa-solid fa-shield-halved"></i>
+              <span class="hidden sm:inline">Admin Dashboard</span>
+              <span class="sm:hidden">Admin</span>
+            </button>
+            <button id="btn-mode-employee" onclick="switchAppMode('employee')" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5">
+              <i class="fa-solid fa-mobile-screen-button"></i>
+              <span class="hidden sm:inline">Employee Portal</span>
+              <span class="sm:hidden">Staff App</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Dynamic Page Container -->
+      <main id="app-content" class="flex-1 p-4 sm:p-6 max-w-[1600px] w-full mx-auto">
+        <!-- Rendered via JS -->
+      </main>
+
+    </div>
+  </div>
+
+  <!-- ==================== GLOBAL MODAL CONTAINER ==================== -->
+  <div id="modal-overlay" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs hidden items-center justify-center p-4 overflow-y-auto">
+    <div id="modal-box" class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg max-h-[92vh] flex flex-col overflow-hidden animate-fade-in">
+      <!-- Modal content injected via JS -->
+    </div>
+  </div>
+
+  <!-- ==================== JAVASCRIPT APPLICATION ==================== -->
+  <script>
+    /* =========================================================================
+       1. CONSTANTS, DATE HELPERS & FORMATTERS
+       ========================================================================= */
+    const STORAGE_KEY = 'solectrik_crm_pagarbook_v1';
+
+    const LEAD_SOURCES = [
+      'Physical Marketing',
+      'Facebook Ads',
+      'Awareness Camp',
+      'Website',
+      'Referral'
+    ];
+
+    const LEAD_STAGES = ['New', 'Site Visit', 'Quotation Sent', 'Won', 'Lost'];
+
+    const PROJECT_STAGE_NAMES = [
+      'Site Inspection',
+      'Quotation Approved',
+      'Material Dispatched',
+      'Structure Installation',
+      'Panel Mounting & Wiring',
+      'Net Metering Approval',
+      'Handover & AMC'
+    ];
+
+    const ATTENDANCE_META = {
+      P:  { label: 'Present',    short: 'P',  bg: 'bg-emerald-500', softBg: 'bg-emerald-50 text-emerald-700 border-emerald-200', cal: 'bg-emerald-500 text-white' },
+      HD: { label: 'Half Day',   short: 'HD', bg: 'bg-amber-400',   softBg: 'bg-amber-50 text-amber-700 border-amber-200',     cal: 'bg-amber-400 text-slate-900' },
+      A:  { label: 'Absent',     short: 'A',  bg: 'bg-rose-500',    softBg: 'bg-rose-50 text-rose-700 border-rose-200',        cal: 'bg-rose-500 text-white' },
+      PL: { label: 'Paid Leave', short: 'PL', bg: 'bg-sky-500',     softBg: 'bg-sky-50 text-sky-700 border-sky-200',           cal: 'bg-sky-500 text-white' },
+      WO: { label: 'Week Off',   short: 'WO', bg: 'bg-indigo-500',  softBg: 'bg-indigo-50 text-indigo-700 border-indigo-200',  cal: 'bg-indigo-500 text-white' }
+    };
+
+    function getTodayISO() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+
+    function getCurrentYearMonth() {
+      return getTodayISO().slice(0, 7); // YYYY-MM
+    }
+
+    function getDaysInMonth(yearMonth) {
+      const [y, m] = yearMonth.split('-').map(Number);
+      return new Date(y, m, 0).getDate();
+    }
+
+    function formatMonthLabel(yearMonth) {
+      const [y, m] = yearMonth.split('-').map(Number);
+      return new Date(y, m - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+    }
+
+    function formatINR(amount) {
+      const num = Number(amount) || 0;
+      const isNeg = num < 0;
+      const formatted = Math.abs(Math.round(num)).toLocaleString('en-IN');
+      return `${isNeg ? '-' : ''}₹${formatted}`;
+    }
+
+    function formatTimeNow() {
+      return new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+    }
+
+    function formatDateShort(isoDate) {
+      if (!isoDate) return '-';
+      const [y, m, d] = isoDate.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+
+    function escapeHTML(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function parseShiftHours(start, end) {
+      if (!start || !end) return 9;
+      const [sh, sm] = start.split(':').map(Number);
+      const [eh, em] = end.split(':').map(Number);
+      const diff = ((eh * 60 + em) - (sh * 60 + sm)) / 60;
+      return diff > 0 ? diff : 9;
+    }
+
+    /* =========================================================================
+       2. REALISTIC INDIAN DEMO DATA GENERATOR (SOLECTRIK ENERGY)
+       ========================================================================= */
+    function buildDemoData() {
+      const todayISO = getTodayISO();
+      const ym = getCurrentYearMonth();
+      const todayDay = parseInt(todayISO.split('-')[2], 10);
+
+      const employees = [
+        {
+          id: 'emp_1',
+          name: 'Rajesh Sharma',
+          phone: '9823011223',
+          role: 'Sales',
+          salaryType: 'Monthly',
+          baseSalary: 28000,
+          shiftStart: '09:30',
+          shiftEnd: '18:30',
+          openingBalance: 1500
+        },
+        {
+          id: 'emp_2',
+          name: 'Priya Kulkarni',
+          phone: '9850445566',
+          role: 'Field Marketing',
+          salaryType: 'Monthly',
+          baseSalary: 22000,
+          shiftStart: '09:30',
+          shiftEnd: '18:30',
+          openingBalance: 0
+        },
+        {
+          id: 'emp_3',
+          name: 'Vikram Jadhav',
+          phone: '9765112299',
+          role: 'Technician',
+          salaryType: 'Monthly',
+          baseSalary: 24000,
+          shiftStart: '09:00',
+          shiftEnd: '18:00',
+          openingBalance: 2000
+        },
+        {
+          id: 'emp_4',
+          name: 'Amit Patil',
+          phone: '9011887766',
+          role: 'Technician',
+          salaryType: 'Daily',
+          baseSalary: 850,
+          shiftStart: '09:00',
+          shiftEnd: '18:00',
+          openingBalance: 0
+        },
+        {
+          id: 'emp_5',
+          name: 'Snehal Deshpande',
+          phone: '9922334455',
+          role: 'Office',
+          salaryType: 'Monthly',
+          baseSalary: 20000,
+          shiftStart: '09:30',
+          shiftEnd: '18:30',
+          openingBalance: -1000
+        }
+      ];
+
+      // Generate realistic attendance for current month up to today
+      const attendance = {};
+      const locations = [
+        { lat: 18.5204, lng: 73.8567, label: 'Kothrud, Pune' },
+        { lat: 18.5590, lng: 73.7868, label: 'Baner Camp Site, Pune' },
+        { lat: 18.6298, lng: 73.7997, label: 'Pimpri-Chinchwad Site' },
+        { lat: 18.5074, lng: 73.8077, label: 'Warje Solar Rooftop' },
+        { lat: 18.5314, lng: 73.8446, label: 'Solectrik HQ, Shivajinagar' }
+      ];
+
+      employees.forEach((emp, empIdx) => {
+        for (let d = 1; d <= todayDay; d++) {
+          const dateStr = `${ym}-${String(d).padStart(2, '0')}`;
+          const dayOfWeek = new Date(`${dateStr}T00:00:00`).getDay(); // 0 = Sun
+          const key = `${emp.id}_${dateStr}`;
+
+          if (dayOfWeek === 0) {
+            attendance[key] = {
+              empId: emp.id,
+              date: dateStr,
+              status: 'WO',
+              punchIn: null,
+              punchOut: null,
+              lat: null,
+              lng: null,
+              locationLabel: '',
+              selfie: null,
+              otHours: 0,
+              lateFine: 0,
+              notes: 'Sunday Week Off'
+            };
+            continue;
+          }
+
+          // Today's statuses: 4 present, 1 absent/half-day for realistic KPI
+          if (d === todayDay) {
+            if (emp.id === 'emp_4') {
+              attendance[key] = {
+                empId: emp.id,
+                date: dateStr,
+                status: 'HD',
+                punchIn: '01:15 PM',
+                punchOut: null,
+                lat: 18.5074,
+                lng: 73.8077,
+                locationLabel: 'Warje Solar Site',
+                selfie: null,
+                otHours: 0,
+                lateFine: 0,
+                notes: 'Afternoon site inspection shift'
+              };
+            } else {
+              const loc = locations[empIdx];
+              attendance[key] = {
+                empId: emp.id,
+                date: dateStr,
+                status: 'P',
+                punchIn: empIdx === 2 ? '09:05 AM' : '09:26 AM',
+                punchOut: null,
+                lat: loc.lat,
+                lng: loc.lng,
+                locationLabel: loc.label,
+                selfie: null,
+                otHours: emp.id === 'emp_3' ? 2 : 0,
+                lateFine: 0,
+                notes: emp.id === 'emp_3' ? 'Panel wiring overtime' : ''
+              };
+            }
+            continue;
+          }
+
+          // Past days in current month
+          let status = 'P';
+          let otHours = 0;
+          let lateFine = 0;
+          let notes = '';
+
+          if (emp.id === 'emp_2' && d === 4) { status = 'A'; notes = 'Personal leave'; }
+          else if (emp.id === 'emp_4' && d === 6) { status = 'A'; notes = 'Absent'; }
+          else if (emp.id === 'emp_1' && d === 7) { status = 'HD'; notes = 'Half day bank work'; }
+          else if (emp.id === 'emp_5' && d === 9) { status = 'PL'; notes = 'Approved medical leave'; }
+          else if (emp.id === 'emp_3' && (d === 5 || d === 11)) { otHours = 2.5; notes = 'Urgent 10kW commissioning'; }
+          else if (emp.id === 'emp_2' && d === 10) { lateFine = 150; notes = 'Late by 45 mins'; }
+
+          const loc = locations[empIdx];
+          attendance[key] = {
+            empId: emp.id,
+            date: dateStr,
+            status,
+            punchIn: status === 'A' || status === 'PL' ? null : '09:28 AM',
+            punchOut: status === 'A' || status === 'PL' ? null : (status === 'HD' ? '01:45 PM' : '06:35 PM'),
+            lat: status === 'A' || status === 'PL' ? null : loc.lat,
+            lng: status === 'A' || status === 'PL' ? null : loc.lng,
+            locationLabel: status === 'A' || status === 'PL' ? '' : loc.label,
+            selfie: null,
+            otHours,
+            lateFine,
+            notes
+          };
+        }
+      });
+
+      const dayClamp = (n) => `${ym}-${String(Math.min(n, todayDay)).padStart(2, '0')}`;
+
+      const ledger = [
+        { id: 'tx_1', empId: 'emp_1', date: dayClamp(5),  type: 'advance',       amount: 4000, mode: 'UPI',  remarks: 'Mid-month cash advance' },
+        { id: 'tx_2', empId: 'emp_1', date: dayClamp(12), type: 'bonus',         amount: 2500, mode: 'Bank', remarks: '10kW Commercial Closure Incentive' },
+        { id: 'tx_3', empId: 'emp_2', date: dayClamp(8),  type: 'advance',       amount: 2000, mode: 'UPI',  remarks: 'Travel & Camp advance' },
+        { id: 'tx_4', empId: 'emp_3', date: dayClamp(10), type: 'salary_payout', amount: 5000, mode: 'Bank', remarks: 'Partial salary payout' },
+        { id: 'tx_5', empId: 'emp_4', date: dayClamp(9),  type: 'advance',       amount: 1500, mode: 'Cash', remarks: 'Weekly site advance' }
+      ];
+
+      const leads = [
+        {
+          id: 'lead_1',
+          customerName: 'Suresh Deshmukh',
+          phone: '9822113344',
+          city: 'Baner, Pune',
+          source: 'Facebook Ads',
+          assignedEmpId: 'emp_1',
+          kwCapacity: 5,
+          stage: 'Won',
+          notes: 'Residential bungalow, 3-phase net metering required. Approved Waaree 540W.',
+          createdAt: `${dayClamp(2)} 11:15 AM`,
+          convertedProjectId: 'proj_1'
+        },
+        {
+          id: 'lead_2',
+          customerName: 'Anjali Joshi',
+          phone: '9850998877',
+          city: 'Kothrud, Pune',
+          source: 'Awareness Camp',
+          assignedEmpId: 'emp_2',
+          kwCapacity: 3,
+          stage: 'Won',
+          notes: 'Generated at Kothrud Society Solar Camp. PM Surya Ghar subsidy applied.',
+          createdAt: `${dayClamp(3)} 04:20 PM`,
+          convertedProjectId: 'proj_2'
+        },
+        {
+          id: 'lead_3',
+          customerName: 'M/s Sahyadri Cold Storage',
+          phone: '9764123456',
+          city: 'Chakan MIDC, Pune',
+          source: 'Physical Marketing',
+          assignedEmpId: 'emp_1',
+          kwCapacity: 10,
+          stage: 'Won',
+          notes: 'Commercial tin-shed rooftop, high electricity bill offset.',
+          createdAt: `${dayClamp(4)} 10:05 AM`,
+          convertedProjectId: 'proj_3'
+        },
+        {
+          id: 'lead_4',
+          customerName: 'Prakash Gokhale',
+          phone: '9890776655',
+          city: 'Wakad, Pune',
+          source: 'Website',
+          assignedEmpId: 'emp_1',
+          kwCapacity: 6,
+          stage: 'Quotation Sent',
+          notes: 'Requested hybrid system quote with lithium battery backup.',
+          createdAt: `${dayClamp(8)} 02:45 PM`,
+          convertedProjectId: null
+        },
+        {
+          id: 'lead_5',
+          customerName: 'Meera Patil',
+          phone: '9921554433',
+          city: 'Hadapsar, Pune',
+          source: 'Facebook Ads',
+          assignedEmpId: 'emp_2',
+          kwCapacity: 4,
+          stage: 'Site Visit',
+          notes: 'Shadow analysis scheduled for tomorrow morning.',
+          createdAt: `${dayClamp(11)} 05:10 PM`,
+          convertedProjectId: null
+        },
+        {
+          id: 'lead_6',
+          customerName: 'Dr. Nitin Kale',
+          phone: '9823449900',
+          city: 'Aundh, Pune',
+          source: 'Referral',
+          assignedEmpId: 'emp_5',
+          kwCapacity: 8,
+          stage: 'New',
+          notes: 'Referred by Suresh Deshmukh. Clinic + Residence rooftop.',
+          createdAt: `${todayISO} 10:30 AM`,
+          convertedProjectId: null
+        }
+      ];
+
+      const projects = [
+        {
+          id: 'proj_1',
+          leadId: 'lead_1',
+          customerName: 'Suresh Deshmukh',
+          city: 'Baner, Pune',
+          phone: '9822113344',
+          kwCapacity: 5,
+          systemType: 'On-Grid',
+          panelBrand: 'Waaree Mono PERC 540W',
+          panelCount: 10,
+          inverterDetails: 'Growatt 5kW 3-Phase',
+          phase: '3-Phase',
+          quotationRef: 'SOL-QT-2026-104',
+          technicianId: 'emp_3',
+          stages: [
+            { name: 'Site Inspection',         completed: true,  completedAt: `${formatDateShort(dayClamp(3))}, 10:30 AM` },
+            { name: 'Quotation Approved',      completed: true,  completedAt: `${formatDateShort(dayClamp(4))}, 04:15 PM` },
+            { name: 'Material Dispatched',     completed: true,  completedAt: `${formatDateShort(dayClamp(6))}, 09:00 AM` },
+            { name: 'Structure Installation',  completed: true,  completedAt: `${formatDateShort(dayClamp(8))}, 05:45 PM` },
+            { name: 'Panel Mounting & Wiring', completed: true,  completedAt: `${formatDateShort(dayClamp(10))}, 04:20 PM` },
+            { name: 'Net Metering Approval',   completed: false, completedAt: null },
+            { name: 'Handover & AMC',          completed: false, completedAt: null }
+          ]
+        },
+        {
+          id: 'proj_2',
+          leadId: 'lead_2',
+          customerName: 'Anjali Joshi',
+          city: 'Kothrud, Pune',
+          phone: '9850998877',
+          kwCapacity: 3,
+          systemType: 'On-Grid',
+          panelBrand: 'Adani Bifacial 550W',
+          panelCount: 6,
+          inverterDetails: 'Sungrow 3kW 1-Phase',
+          phase: '1-Phase',
+          quotationRef: 'SOL-QT-2026-109',
+          technicianId: 'emp_4',
+          stages: [
+            { name: 'Site Inspection',         completed: true,  completedAt: `${formatDateShort(dayClamp(4))}, 11:00 AM` },
+            { name: 'Quotation Approved',      completed: true,  completedAt: `${formatDateShort(dayClamp(5))}, 01:30 PM` },
+            { name: 'Material Dispatched',     completed: true,  completedAt: `${formatDateShort(dayClamp(9))}, 10:15 AM` },
+            { name: 'Structure Installation',  completed: false, completedAt: null },
+            { name: 'Panel Mounting & Wiring', completed: false, completedAt: null },
+            { name: 'Net Metering Approval',   completed: false, completedAt: null },
+            { name: 'Handover & AMC',          completed: false, completedAt: null }
+          ]
+        },
+        {
+          id: 'proj_3',
+          leadId: 'lead_3',
+          customerName: 'M/s Sahyadri Cold Storage',
+          city: 'Chakan MIDC, Pune',
+          phone: '9764123456',
+          kwCapacity: 10,
+          systemType: 'Hybrid',
+          panelBrand: 'Tata Power Mono PERC 545W',
+          panelCount: 19,
+          inverterDetails: 'Deye 10kW 3-Phase Hybrid',
+          phase: '3-Phase',
+          quotationRef: 'SOL-QT-2026-112',
+          technicianId: 'emp_3',
+          stages: [
+            { name: 'Site Inspection',         completed: true,  completedAt: `${formatDateShort(dayClamp(5))}, 09:45 AM` },
+            { name: 'Quotation Approved',      completed: true,  completedAt: `${formatDateShort(dayClamp(6))}, 06:00 PM` },
+            { name: 'Material Dispatched',     completed: true,  completedAt: `${formatDateShort(dayClamp(8))}, 08:30 AM` },
+            { name: 'Structure Installation',  completed: true,  completedAt: `${formatDateShort(dayClamp(10))}, 05:10 PM` },
+            { name: 'Panel Mounting & Wiring', completed: true,  completedAt: `${formatDateShort(dayClamp(11))}, 06:20 PM` },
+            { name: 'Net Metering Approval',   completed: true,  completedAt: `${formatDateShort(dayClamp(12))}, 03:00 PM` },
+            { name: 'Handover & AMC',          completed: false, completedAt: null }
+          ]
+        }
+      ];
+
+      return { employees, attendance, ledger, leads, projects };
+    }
+
+    /* =========================================================================
+       3. STATE MANAGEMENT & LOCALSTORAGE PERSISTENCE
+       ========================================================================= */
+    let appData = loadData();
+
+    const uiState = {
+      mode: 'admin',                  // 'admin' | 'employee'
+      adminTab: 'overview',           // 'overview' | 'payroll' | 'leads' | 'projects'
+      payrollSubTab: 'daily',         // 'daily' | 'staff' | 'summary'
+      selectedDate: getTodayISO(),
+      selectedMonth: getCurrentYearMonth(),
+      selectedStaffId: null,          // When viewing a specific employee's PagarBook Profile
+      portalEmpId: appData.employees[0]?.id || '',
+      leadFilters: { source: 'ALL', empId: 'ALL', stage: 'ALL', search: '' },
+      portalSelfiePreview: null,
+      liveClockInterval: null
+    };
+
+    function loadData() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && Array.isArray(parsed.employees)) return parsed;
+        }
+      } catch (e) {
+        console.error('Failed to load localStorage:', e);
+      }
+      const demo = buildDemoData();
+      saveData(demo);
+      return demo;
+    }
+
+    function saveData(data = appData) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (e) {
+        showToast('Storage limit reached. Try clearing large images or resetting demo data.', 'error');
+      }
+    }
+
+    /* =========================================================================
+       4. PAGARBOOK SALARY CALCULATION ENGINE
+       ========================================================================= */
+    function calculateEmployeePayroll(emp, yearMonth = uiState.selectedMonth) {
+      const daysInMonth = getDaysInMonth(yearMonth);
+      const shiftHours = parseShiftHours(emp.shiftStart, emp.shiftEnd);
+
+      let dailyRate = 0;
+      let hourlyRate = 0;
+
+      if (emp.salaryType === 'Monthly') {
+        dailyRate = emp.baseSalary / daysInMonth;
+        hourlyRate = dailyRate / shiftHours;
+      } else if (emp.salaryType === 'Daily') {
+        dailyRate = emp.baseSalary;
+        hourlyRate = dailyRate / shiftHours;
+      } else {
+        // Hourly
+        hourlyRate = emp.baseSalary;
+        dailyRate = hourlyRate * shiftHours;
+      }
+
+      let countP = 0, countHD = 0, countA = 0, countPL = 0, countWO = 0;
+      let earnedDaysPay = 0;
+      let totalOtHours = 0;
+      let otPay = 0;
+      let totalLateFines = 0;
+
+      // Aggregate Attendance for selected month
+      Object.values(appData.attendance).forEach(rec => {
+        if (rec.empId !== emp.id || !rec.date.startsWith(yearMonth)) return;
+        if (rec.status === 'P')  { countP++;  earnedDaysPay += dailyRate; }
+        else if (rec.status === 'HD') { countHD++; earnedDaysPay += dailyRate * 0.5; }
+        else if (rec.status === 'A')  { countA++; }
+        else if (rec.status === 'PL') { countPL++; earnedDaysPay += dailyRate; }
+        else if (rec.status === 'WO') { countWO++; earnedDaysPay += dailyRate; }
+
+        const ot = Number(rec.otHours) || 0;
+        const fine = Number(rec.lateFine) || 0;
+        totalOtHours += ot;
+        otPay += ot * hourlyRate;
+        totalLateFines += fine;
+      });
+
+      // Aggregate Ledger entries for selected month
+      let bonuses = 0;
+      let deductions = 0;
+      let advancesAndPayouts = 0;
+
+      const empLedger = appData.ledger.filter(tx => tx.empId === emp.id && tx.date.startsWith(yearMonth));
+      empLedger.forEach(tx => {
+        const amt = Number(tx.amount) || 0;
+        if (tx.type === 'bonus') bonuses += amt;
+        else if (tx.type === 'deduction') deductions += amt;
+        else if (tx.type === 'advance' || tx.type === 'salary_payout') advancesAndPayouts += amt;
+      });
+
+      const openingBalance = Number(emp.openingBalance) || 0;
+      const grossEarned = earnedDaysPay + otPay + bonuses;
+      const totalDeductions = totalLateFines + deductions + advancesAndPayouts;
+      const netPending = openingBalance + grossEarned - totalDeductions;
+
+      return {
+        daysInMonth,
+        shiftHours,
+        dailyRate,
+        hourlyRate,
+        countP,
+        countHD,
+        countA,
+        countPL,
+        countWO,
+        payableDays: countP + countPL + countWO + (countHD * 0.5),
+        earnedDaysPay: Math.round(earnedDaysPay),
+        totalOtHours,
+        otPay: Math.round(otPay),
+        bonuses: Math.round(bonuses),
+        totalLateFines: Math.round(totalLateFines),
+        deductions: Math.round(deductions),
+        advancesAndPayouts: Math.round(advancesAndPayouts),
+        openingBalance: Math.round(openingBalance),
+        grossEarned: Math.round(grossEarned),
+        netPending: Math.round(netPending)
+      };
+    }
+
+    function getEmployeeById(id) {
+      return appData.employees.find(e => e.id === id);
+    }
+
+    /* =========================================================================
+       5. NAVIGATION, TOASTS & MODAL UTILITIES
+       ========================================================================= */
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const colors = {
+        success: 'bg-slate-900 text-white border-emerald-500',
+        error: 'bg-rose-600 text-white border-rose-400',
+        info: 'bg-slate-800 text-white border-amber-400'
+      };
+      const icons = {
+        success: 'fa-circle-check text-emerald-400',
+        error: 'fa-circle-exclamation text-white',
+        info: 'fa-circle-info text-amber-400'
+      };
+      const toast = document.createElement('div');
+      toast.className = `pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border-l-4 text-sm font-medium transition-all duration-300 ${colors[type] || colors.success}`;
+      toast.innerHTML = `<i class="fa-solid ${icons[type] || icons.success}"></i><span class="flex-1">${escapeHTML(message)}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(8px)';
+        setTimeout(() => toast.remove(), 300);
+      }, 3200);
+    }
+
+    function openModal(htmlContent, maxWidthClass = 'max-w-lg') {
+      const overlay = document.getElementById('modal-overlay');
+      const box = document.getElementById('modal-box');
+      box.className = `bg-white rounded-2xl shadow-2xl border border-slate-200 w-full ${maxWidthClass} max-h-[92vh] flex flex-col overflow-hidden`;
+      box.innerHTML = htmlContent;
+      overlay.classList.remove('hidden');
+      overlay.classList.add('flex');
+    }
+
+    function closeModal() {
+      const overlay = document.getElementById('modal-overlay');
+      overlay.classList.add('hidden');
+      overlay.classList.remove('flex');
+    }
+
+    // Close modal on backdrop click
+    document.getElementById('modal-overlay').addEventListener('click', (e) => {
+      if (e.target.id === 'modal-overlay') closeModal();
+    });
+
+    function toggleMobileSidebar(open) {
+      const sb = document.getElementById('admin-sidebar');
+      const bd = document.getElementById('sidebar-backdrop');
+      if (open) {
+        sb.classList.remove('-translate-x-full');
+        bd.classList.remove('hidden');
+      } else {
+        sb.classList.add('-translate-x-full');
+        bd.classList.add('hidden');
+      }
+    }
+
+    function switchAppMode(mode) {
+      uiState.mode = mode;
+      const sidebar = document.getElementById('admin-sidebar');
+      const menuBtn = document.getElementById('mobile-menu-btn');
+      if (mode === 'employee') {
+        sidebar.classList.add('lg:hidden');
+        menuBtn.classList.add('hidden');
+        toggleMobileSidebar(false);
+        if (!getEmployeeById(uiState.portalEmpId) && appData.employees.length) {
+          uiState.portalEmpId = appData.employees[0].id;
+        }
+      } else {
+        sidebar.classList.remove('lg:hidden');
+        menuBtn.classList.remove('hidden');
+      }
+      renderApp();
+    }
+
+    function navigateAdmin(tab) {
+      uiState.adminTab = tab;
+      if (tab !== 'payroll') uiState.selectedStaffId = null;
+      toggleMobileSidebar(false);
+      renderApp();
+    }
+
+    function updateHeaderAndNav() {
+      // Mode Switcher styling
+      const btnAdmin = document.getElementById('btn-mode-admin');
+      const btnEmp = document.getElementById('btn-mode-employee');
+      if (uiState.mode === 'admin') {
+        btnAdmin.className = 'px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 bg-slate-900 text-white shadow-sm';
+        btnEmp.className = 'px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 text-slate-600 hover:text-slate-900';
+      } else {
+        btnEmp.className = 'px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 bg-amber-500 text-slate-950 shadow-sm';
+        btnAdmin.className = 'px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 text-slate-600 hover:text-slate-900';
+      }
+
+      // Sidebar Nav active state
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        const isActive = btn.dataset.nav === uiState.adminTab;
+        if (isActive) {
+          btn.className = 'nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 transition-all';
+        } else {
+          btn.className = 'nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all';
+        }
+      });
+
+      const titles = {
+        overview: 'Overview Dashboard',
+        payroll: 'Staff & Payroll (PagarBook Khata)',
+        leads: 'Leads & Work Audit',
+        projects: 'Solar Projects & Work Timeline'
+      };
+      document.getElementById('header-page-title').textContent =
+        uiState.mode === 'employee' ? 'Employee Self-Service Portal' : titles[uiState.adminTab];
+
+      document.getElementById('header-date-subtitle').textContent =
+        new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      document.getElementById('sidebar-month-label').textContent = formatMonthLabel(uiState.selectedMonth);
+    }
+
+    function renderApp() {
+      if (uiState.liveClockInterval) {
+        clearInterval(uiState.liveClockInterval);
+        uiState.liveClockInterval = null;
+      }
+      updateHeaderAndNav();
+      const container = document.getElementById('app-content');
+
+      if (uiState.mode === 'employee') {
+        container.innerHTML = renderEmployeePortal();
+        startPortalLiveClock();
+        return;
+      }
+
+      if (uiState.adminTab === 'overview') container.innerHTML = renderOverviewModule();
+      else if (uiState.adminTab === 'payroll') container.innerHTML = renderPayrollModule();
+      else if (uiState.adminTab === 'leads') container.innerHTML = renderLeadsModule();
+      else if (uiState.adminTab === 'projects') container.innerHTML = renderProjectsModule();
+    }
+
+    /* =========================================================================
+       6. MODULE 1: OVERVIEW DASHBOARD
+       ========================================================================= */
+    function renderOverviewModule() {
+      const todayISO = getTodayISO();
+      const activeLeads = appData.leads.filter(l => l.stage !== 'Lost');
+      const totalPipelineKw = activeLeads.reduce((sum, l) => sum + (Number(l.kwCapacity) || 0), 0);
+
+      let presentToday = 0;
+      let totalNetPayroll = 0;
+      appData.employees.forEach(emp => {
+        const rec = appData.attendance[`${emp.id}_${todayISO}`];
+        if (rec && (rec.status === 'P' || rec.status === 'HD')) presentToday++;
+        totalNetPayroll += calculateEmployeePayroll(emp).netPending;
+      });
+
+      // Source Breakdown
+      const totalLeadsCount = appData.leads.length || 1;
+      const sourceStats = LEAD_SOURCES.map(src => {
+        const matching = appData.leads.filter(l => l.source === src);
+        const won = matching.filter(l => l.stage === 'Won').length;
+        const pct = Math.round((matching.length / totalLeadsCount) * 100);
+        return { source: src, count: matching.length, won, pct };
+      }).sort((a, b) => b.count - a.count);
+
+      // Employee Performance Leaderboard
+      const empPerf = appData.employees.map(emp => {
+        const empLeads = appData.leads.filter(l => l.assignedEmpId === emp.id);
+        const wonLeads = empLeads.filter(l => l.stage === 'Won');
+        const kwWon = wonLeads.reduce((s, l) => s + (Number(l.kwCapacity) || 0), 0);
+        return { emp, total: empLeads.length, won: wonLeads.length, kwWon };
+      }).sort((a, b) => b.won - a.won || b.total - a.total);
+
+      return `
+        <div class="space-y-6">
+          <!-- KPI Strip -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Active Leads</span>
+                <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center"><i class="fa-solid fa-bullseye"></i></div>
+              </div>
+              <div class="text-2xl sm:text-3xl font-extrabold text-slate-900">${activeLeads.length}</div>
+              <div class="text-xs text-slate-500 mt-1"><span class="text-emerald-600 font-semibold">${appData.leads.filter(l => l.stage === 'Won').length} Won</span> • ${appData.leads.length} Total Logged</div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Pipeline Capacity</span>
+                <div class="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center"><i class="fa-solid fa-solar-panel"></i></div>
+              </div>
+              <div class="text-2xl sm:text-3xl font-extrabold text-slate-900">${totalPipelineKw} <span class="text-base font-bold text-amber-600">kW</span></div>
+              <div class="text-xs text-slate-500 mt-1">${appData.projects.length} Active EPC Installations</div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow cursor-pointer" onclick="navigateAdmin('payroll')">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Staff Present Today</span>
+                <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center"><i class="fa-solid fa-user-check"></i></div>
+              </div>
+              <div class="text-2xl sm:text-3xl font-extrabold text-slate-900">${presentToday} <span class="text-lg font-semibold text-slate-400">/ ${appData.employees.length}</span></div>
+              <div class="text-xs text-emerald-600 font-medium mt-1">Click to open PagarBook Attendance →</div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow cursor-pointer" onclick="uiState.payrollSubTab='staff'; navigateAdmin('payroll')">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Net Pending Payroll</span>
+                <div class="w-10 h-10 rounded-xl bg-slate-900 text-amber-400 flex items-center justify-center"><i class="fa-solid fa-indian-rupee-sign"></i></div>
+              </div>
+              <div class="text-2xl sm:text-3xl font-extrabold text-slate-900">${formatINR(totalNetPayroll)}</div>
+              <div class="text-xs text-slate-500 mt-1">Accrued for ${formatMonthLabel(uiState.selectedMonth)}</div>
+            </div>
+          </div>
+
+          <!-- Middle Grid: Source Breakdown & Active Projects -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Lead Source Performance -->
+            <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs">
+              <div class="flex items-center justify-between mb-4">
+                <div>
+                  <h2 class="font-bold text-slate-900 text-base">Lead Source Performance</h2>
+                  <p class="text-xs text-slate-500">Attribution &amp; conversion audit by channel</p>
+                </div>
+                <button onclick="navigateAdmin('leads')" class="text-xs font-semibold text-amber-600 hover:text-amber-700">View Audit →</button>
+              </div>
+              <div class="space-y-4">
+                ${sourceStats.map(s => `
+                  <div>
+                    <div class="flex items-center justify-between text-sm mb-1.5">
+                      <span class="font-semibold text-slate-700">${escapeHTML(s.source)}</span>
+                      <span class="text-xs text-slate-500"><strong class="text-slate-900">${s.count}</strong> leads • <span class="text-emerald-600 font-semibold">${s.won} won</span></span>
+                    </div>
+                    <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div class="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full transition-all duration-500" style="width: ${Math.max(s.pct, s.count > 0 ? 8 : 0)}%"></div>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- Active Solar Installations Summary -->
+            <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs">
+              <div class="flex items-center justify-between mb-4">
+                <div>
+                  <h2 class="font-bold text-slate-900 text-base">Active Solar Installations</h2>
+                  <p class="text-xs text-slate-500">Live 7-stage EPC commissioning progress</p>
+                </div>
+                <button onclick="navigateAdmin('projects')" class="text-xs font-semibold text-amber-600 hover:text-amber-700">Manage Projects →</button>
+              </div>
+              <div class="space-y-3">
+                ${appData.projects.map(p => {
+                  const done = p.stages.filter(st => st.completed).length;
+                  const pct = Math.round((done / p.stages.length) * 100);
+                  const currentStage = p.stages.find(st => !st.completed)?.name || 'Handover Complete';
+                  const tech = getEmployeeById(p.technicianId);
+                  return `
+                    <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/70 hover:border-amber-300 transition-colors">
+                      <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <div>
+                          <span class="font-bold text-slate-900 text-sm">${escapeHTML(p.customerName)}</span>
+                          <span class="ml-2 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">${p.kwCapacity} kW ${escapeHTML(p.systemType)}</span>
+                        </div>
+                        <span class="text-xs font-semibold text-slate-600">${done}/7 Stages (${pct}%)</span>
+                      </div>
+                      <div class="w-full h-2 bg-slate-200 rounded-full overflow-hidden mb-2">
+                        <div class="h-full bg-emerald-500 rounded-full" style="width:${pct}%"></div>
+                      </div>
+                      <div class="flex flex-wrap items-center justify-between text-xs text-slate-500 gap-2">
+                        <span><i class="fa-solid fa-location-dot text-slate-400 mr-1"></i>${escapeHTML(p.city)} • Next: <strong class="text-slate-700">${escapeHTML(currentStage)}</strong></span>
+                        <span><i class="fa-solid fa-helmet-safety text-amber-500 mr-1"></i>${tech ? escapeHTML(tech.name) : 'Unassigned'}</span>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          </div>
+
+          <!-- Employee Performance Audit Leaderboard -->
+          <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h2 class="font-bold text-slate-900 text-base">Employee Performance &amp; Work Audit Leaderboard</h2>
+                <p class="text-xs text-slate-500">Leads generated, closures, and solar kW capacity attributed per employee</p>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                    <th class="py-2.5 px-3">Employee</th>
+                    <th class="py-2.5 px-3">Role</th>
+                    <th class="py-2.5 px-3 text-center">Leads Generated</th>
+                    <th class="py-2.5 px-3 text-center">Deals Won</th>
+                    <th class="py-2.5 px-3 text-center">Closed Capacity</th>
+                    <th class="py-2.5 px-3 text-right">Net Pending Salary</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-sm">
+                  ${empPerf.map((row, idx) => {
+                    const pay = calculateEmployeePayroll(row.emp);
+                    return `
+                      <tr class="hover:bg-slate-50/80 transition-colors">
+                        <td class="py-3 px-3 font-semibold text-slate-900 flex items-center gap-2.5">
+                          <span class="w-6 h-6 rounded-full ${idx === 0 ? 'bg-amber-400 text-slate-950' : 'bg-slate-200 text-slate-700'} text-xs font-bold flex items-center justify-center">${idx + 1}</span>
+                          ${escapeHTML(row.emp.name)}
+                        </td>
+                        <td class="py-3 px-3"><span class="text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 font-medium">${escapeHTML(row.emp.role)}</span></td>
+                        <td class="py-3 px-3 text-center font-semibold text-slate-800">${row.total}</td>
+                        <td class="py-3 px-3 text-center"><span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold text-xs">${row.won}</span></td>
+                        <td class="py-3 px-3 text-center font-bold text-amber-600">${row.kwWon} kW</td>
+                        <td class="py-3 px-3 text-right font-bold text-slate-900">${formatINR(pay.netPending)}</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    /* =========================================================================
+       7. MODULE 2: STAFF & PAYROLL (EXACT PAGARBOOK REPLICA)
+       ========================================================================= */
+    function renderPayrollModule() {
+      // If viewing an individual employee's PagarBook Khata profile
+      if (uiState.selectedStaffId) {
+        const emp = getEmployeeById(uiState.selectedStaffId);
+        if (emp) return renderStaffProfileKhata(emp);
+        uiState.selectedStaffId = null;
+      }
+
+      const targetDate = uiState.selectedDate;
+      let presentCount = 0;
+      let absentHalfCount = 0;
+      let totalPayable = 0;
+
+      appData.employees.forEach(emp => {
+        const rec = appData.attendance[`${emp.id}_${targetDate}`];
+        if (rec) {
+          if (rec.status === 'P' || rec.status === 'PL' || rec.status === 'WO') presentCount++;
+          else if (rec.status === 'A' || rec.status === 'HD') absentHalfCount++;
+        }
+        totalPayable += calculateEmployeePayroll(emp).netPending;
+      });
+
+      const subTabs = [
+        { id: 'daily',   label: 'Daily Attendance',         icon: 'fa-calendar-check' },
+        { id: 'staff',   label: 'Staff & Passbook (Khata)', icon: 'fa-book' },
+        { id: 'summary', label: 'Payroll Summary & Export', icon: 'fa-file-excel' }
+      ];
+
+      return `
+        <div class="space-y-5">
+          <!-- Top PagarBook KPI Strip -->
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs">
+              <div class="text-xs font-semibold text-slate-500">Total Staff</div>
+              <div class="text-2xl font-extrabold text-slate-900 mt-1">${appData.employees.length}</div>
+            </div>
+            <div class="bg-white rounded-2xl p-4 border border-emerald-200/80 shadow-xs">
+              <div class="text-xs font-semibold text-emerald-700">Present (${formatDateShort(targetDate)})</div>
+              <div class="text-2xl font-extrabold text-emerald-600 mt-1">${presentCount}</div>
+            </div>
+            <div class="bg-white rounded-2xl p-4 border border-rose-200/80 shadow-xs">
+              <div class="text-xs font-semibold text-rose-700">Absent / Half-Day</div>
+              <div class="text-2xl font-extrabold text-rose-600 mt-1">${absentHalfCount}</div>
+            </div>
+            <div class="bg-slate-900 rounded-2xl p-4 text-white shadow-xs">
+              <div class="text-xs font-semibold text-amber-400">Total Net Payable</div>
+              <div class="text-2xl font-extrabold text-white mt-1">${formatINR(totalPayable)}</div>
+            </div>
+          </div>
+
+          <!-- Sub-Tabs & Month Selector -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-2 rounded-2xl border border-slate-200/80">
+            <div class="flex flex-wrap gap-1.5">
+              ${subTabs.map(t => `
+                <button onclick="uiState.payrollSubTab='${t.id}'; renderApp()"
+                  class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 ${
+                    uiState.payrollSubTab === t.id
+                      ? 'bg-slate-900 text-white shadow-xs'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }">
+                  <i class="fa-solid ${t.icon}"></i>
+                  <span>${t.label}</span>
+                </button>
+              `).join('')}
+            </div>
+
+            <div class="flex items-center gap-2 px-2">
+              <label class="text-xs font-semibold text-slate-500">Month:</label>
+              <input type="month" value="${uiState.selectedMonth}" onchange="uiState.selectedMonth=this.value; renderApp()"
+                class="text-xs sm:text-sm font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+            </div>
+          </div>
+
+          <!-- Active Sub-Tab Body -->
+          ${uiState.payrollSubTab === 'daily' ? renderDailyAttendanceTab() : ''}
+          ${uiState.payrollSubTab === 'staff' ? renderStaffKhataListTab() : ''}
+          ${uiState.payrollSubTab === 'summary' ? renderPayrollSummaryTab() : ''}
+        </div>
+      `;
+    }
+
+    /* ----- Sub-tab 1: Daily Attendance (One-Tap PagarBook Pills) ----- */
+    function renderDailyAttendanceTab() {
+      const dateStr = uiState.selectedDate;
+      return `
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <div class="p-4 sm:p-5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 bg-slate-50/70">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center"><i class="fa-solid fa-calendar-day text-lg"></i></div>
+              <div>
+                <h3 class="font-bold text-slate-900 text-base">Daily Attendance Register</h3>
+                <p class="text-xs text-slate-500">One-tap status marking with live GPS &amp; Selfie verification</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <input type="date" value="${dateStr}" onchange="uiState.selectedDate=this.value; uiState.selectedMonth=this.value.slice(0,7); renderApp()"
+                class="text-sm font-semibold text-slate-800 bg-white border border-slate-300 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              <button onclick="markAllPresent('${dateStr}')" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-colors">
+                <i class="fa-solid fa-check-double mr-1"></i>Mark All P
+              </button>
+            </div>
+          </div>
+
+          <div class="divide-y divide-slate-100">
+            ${appData.employees.map(emp => {
+              const rec = appData.attendance[`${emp.id}_${dateStr}`] || {};
+              const status = rec.status || '';
+              const hasGeo = rec.lat && rec.lng;
+              return `
+                <div class="p-4 sm:px-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 hover:bg-slate-50/60 transition-colors">
+                  <!-- Employee Info & Punch Details -->
+                  <div class="flex items-start gap-3 min-w-0">
+                    <button onclick="openStaffProfile('${emp.id}')" class="w-10 h-10 rounded-xl bg-slate-900 text-amber-400 font-bold text-sm flex items-center justify-center shrink-0 hover:bg-amber-500 hover:text-slate-950 transition-colors">
+                      ${escapeHTML(emp.name.split(' ').map(n => n[0]).join('').slice(0,2))}
+                    </button>
+                    <div class="min-w-0">
+                      <div class="flex flex-wrap items-center gap-2">
+                        <button onclick="openStaffProfile('${emp.id}')" class="font-bold text-slate-900 hover:text-amber-600 text-sm sm:text-base transition-colors">${escapeHTML(emp.name)}</button>
+                        <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">${escapeHTML(emp.role)}</span>
+                        <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">${escapeHTML(emp.salaryType)} • ${formatINR(emp.baseSalary)}</span>
+                      </div>
+
+                      <!-- Punch-In / GPS / Selfie Row -->
+                      <div class="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-slate-500">
+                        ${rec.punchIn ? `<span class="inline-flex items-center gap-1 text-emerald-700 font-medium bg-emerald-50 px-2 py-0.5 rounded-md"><i class="fa-regular fa-clock"></i>In: ${escapeHTML(rec.punchIn)}${rec.punchOut ? ' • Out: ' + escapeHTML(rec.punchOut) : ''}</span>` : `<span class="text-slate-400">No punch log</span>`}
+                        ${hasGeo || rec.selfie ? `
+                          <button onclick="openPunchVerificationModal('${emp.id}', '${dateStr}')" class="inline-flex items-center gap-1 text-sky-700 bg-sky-50 hover:bg-sky-100 px-2 py-0.5 rounded-md font-semibold transition-colors">
+                            <i class="fa-solid fa-location-dot"></i>
+                            <span>${escapeHTML(rec.locationLabel || 'View GPS')}</span>
+                            ${rec.selfie ? '<i class="fa-solid fa-camera ml-1 text-amber-600"></i>' : ''}
+                          </button>
+                        ` : ''}
+                        ${(Number(rec.otHours) > 0) ? `<span class="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-semibold">+${rec.otHours}h OT</span>` : ''}
+                        ${(Number(rec.lateFine) > 0) ? `<span class="px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 font-semibold">Fine: ${formatINR(rec.lateFine)}</span>` : ''}
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- PagarBook One-Tap Status Pills + OT/Fine -->
+                  <div class="flex flex-wrap items-center gap-2 shrink-0">
+                    <div class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
+                      ${['P', 'HD', 'A', 'PL', 'WO'].map(st => {
+                        const isSelected = status === st;
+                        const activeColors = {
+                          P: 'bg-emerald-500 text-white shadow-sm',
+                          HD: 'bg-amber-400 text-slate-950 shadow-sm',
+                          A: 'bg-rose-500 text-white shadow-sm',
+                          PL: 'bg-sky-500 text-white shadow-sm',
+                          WO: 'bg-indigo-500 text-white shadow-sm'
+                        };
+                        return `
+                          <button onclick="setAttendanceStatus('${emp.id}', '${dateStr}', '${st}')" title="${ATTENDANCE_META[st].label}"
+                            class="w-9 h-9 rounded-lg text-xs font-extrabold transition-all ${
+                              isSelected ? activeColors[st] : 'text-slate-600 hover:bg-white'
+                            }">
+                            ${st}
+                          </button>
+                        `;
+                      }).join('')}
+                    </div>
+
+                    <button onclick="openOtFineModal('${emp.id}', '${dateStr}')"
+                      class="px-3 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors">
+                      <i class="fa-solid fa-sliders mr-1 text-amber-600"></i>+ OT / Fine
+                    </button>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    /* ----- Sub-tab 2: Staff & Passbook (Khata) Directory ----- */
+    function renderStaffKhataListTab() {
+      return `
+        <div class="space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 class="font-bold text-slate-900 text-base">Staff Directory &amp; Salary Khata</h3>
+              <p class="text-xs text-slate-500">Click any employee to open their PagarBook Attendance Calendar, Passbook &amp; Payslip</p>
+            </div>
+            <button onclick="openAddStaffModal()" class="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-sm shadow-sm transition-colors flex items-center gap-2">
+              <i class="fa-solid fa-user-plus"></i>
+              <span>+ Add Staff</span>
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            ${appData.employees.map(emp => {
+              const pay = calculateEmployeePayroll(emp);
+              return `
+                <div onclick="openStaffProfile('${emp.id}')" class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs hover:shadow-md hover:border-amber-400 transition-all cursor-pointer group">
+                  <div class="flex items-start justify-between gap-3 mb-4">
+                    <div class="flex items-center gap-3">
+                      <div class="w-11 h-11 rounded-xl bg-slate-900 text-amber-400 font-bold flex items-center justify-center group-hover:bg-amber-500 group-hover:text-slate-950 transition-colors">
+                        ${escapeHTML(emp.name.split(' ').map(n => n[0]).join('').slice(0,2))}
+                      </div>
+                      <div>
+                        <div class="font-bold text-slate-900 text-base">${escapeHTML(emp.name)}</div>
+                        <div class="text-xs text-slate-500">${escapeHTML(emp.role)} • ${escapeHTML(emp.phone)}</div>
+                      </div>
+                    </div>
+                    <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">${escapeHTML(emp.salaryType)}</span>
+                  </div>
+
+                  <div class="grid grid-cols-3 gap-2 text-center bg-slate-50 rounded-xl p-2.5 mb-4 border border-slate-100">
+                    <div>
+                      <div class="text-[11px] text-slate-500">Present</div>
+                      <div class="font-bold text-emerald-600 text-sm">${pay.countP + pay.countPL + pay.countWO}d</div>
+                    </div>
+                    <div>
+                      <div class="text-[11px] text-slate-500">Half / Abs</div>
+                      <div class="font-bold text-rose-600 text-sm">${pay.countHD} / ${pay.countA}</div>
+                    </div>
+                    <div>
+                      <div class="text-[11px] text-slate-500">Advances</div>
+                      <div class="font-bold text-slate-800 text-sm">${formatINR(pay.advancesAndPayouts)}</div>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+                    <div>
+                      <div class="text-[11px] text-slate-500 font-medium">Net Pending Balance</div>
+                      <div class="text-lg font-extrabold ${pay.netPending >= 0 ? 'text-emerald-600' : 'text-rose-600'}">${formatINR(pay.netPending)}</div>
+                    </div>
+                    <span class="text-xs font-semibold text-amber-600 group-hover:translate-x-0.5 transition-transform">Open Khata →</span>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    /* ----- Individual Employee PagarBook Profile (Calendar + Passbook) ----- */
+    function renderStaffProfileKhata(emp) {
+      const ym = uiState.selectedMonth;
+      const pay = calculateEmployeePayroll(emp, ym);
+      const [year, month] = ym.split('-').map(Number);
+      const daysInMonth = getDaysInMonth(ym);
+      const firstDayOfWeek = new Date(year, month - 1, 1).getDay();
+
+      const empLedger = appData.ledger
+        .filter(tx => tx.empId === emp.id && tx.date.startsWith(ym))
+        .sort((a, b) => b.date.localeCompare(a.date));
+
+      // Build WhatsApp Share Text
+      const waText = encodeURIComponent(
+        `*Solectrik Energy - Salary Summary (${formatMonthLabel(ym)})*\n` +
+        `Employee: ${emp.name} (${emp.role})\n` +
+        `Payable Days: ${pay.payableDays} (P:${pay.countP}, HD:${pay.countHD}, A:${pay.countA}, PL/WO:${pay.countPL + pay.countWO})\n` +
+        `Earned Pay: ${formatINR(pay.earnedDaysPay)}\n` +
+        `Overtime (${pay.totalOtHours}h): +${formatINR(pay.otPay)}\n` +
+        `Bonuses: +${formatINR(pay.bonuses)}\n` +
+        `Fines/Deductions: -${formatINR(pay.totalLateFines + pay.deductions)}\n` +
+        `Advances/Payouts: -${formatINR(pay.advancesAndPayouts)}\n` +
+        `Opening Bal: ${formatINR(pay.openingBalance)}\n` +
+        `*Net Pending Balance: ${formatINR(pay.netPending)}*`
+      );
+
+      // Build Calendar cells
+      let calCells = '';
+      for (let i = 0; i < firstDayOfWeek; i++) {
+        calCells += `<div class="h-12 rounded-xl bg-slate-50/50"></div>`;
+      }
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dISO = `${ym}-${String(d).padStart(2, '0')}`;
+        const rec = appData.attendance[`${emp.id}_${dISO}`];
+        const st = rec?.status;
+        const meta = st ? ATTENDANCE_META[st] : null;
+        const hasExtra = (Number(rec?.otHours) > 0) || (Number(rec?.lateFine) > 0);
+        calCells += `
+          <button onclick="openEditDayModal('${emp.id}', '${dISO}')"
+            class="h-12 sm:h-14 rounded-xl border flex flex-col items-center justify-center transition-all hover:scale-[1.03] relative ${
+              meta ? `${meta.cal} border-transparent shadow-xs` : 'bg-white border-slate-200 text-slate-700 hover:border-amber-400'
+            }">
+            <span class="text-xs font-bold leading-none">${d}</span>
+            <span class="text-[10px] font-semibold mt-1 opacity-95">${st || '-'}</span>
+            ${hasExtra ? `<span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-white ring-2 ring-slate-900"></span>` : ''}
+          </button>
+        `;
+      }
+
+      return `
+        <div class="space-y-5">
+          <!-- Back & Action Header -->
+          <div class="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+              <button onclick="uiState.selectedStaffId=null; renderApp()" class="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors">
+                <i class="fa-solid fa-arrow-left"></i>
+              </button>
+              <div>
+                <div class="flex items-center gap-2">
+                  <h2 class="text-lg sm:text-xl font-extrabold text-slate-900">${escapeHTML(emp.name)}</h2>
+                  <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800">${escapeHTML(emp.role)}</span>
+                </div>
+                <p class="text-xs text-slate-500 mt-0.5">${escapeHTML(emp.phone)} • ${escapeHTML(emp.salaryType)} Base: <strong>${formatINR(emp.baseSalary)}</strong> • Shift: ${emp.shiftStart} - ${emp.shiftEnd}</p>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+              <input type="month" value="${ym}" onchange="uiState.selectedMonth=this.value; renderApp()"
+                class="text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" />
+              <button onclick="openLedgerEntryModal('${emp.id}', 'payout')" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs">
+                <i class="fa-solid fa-indian-rupee-sign mr-1"></i>Give Advance / Pay
+              </button>
+              <button onclick="openLedgerEntryModal('${emp.id}', 'adjust')" class="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs">
+                <i class="fa-solid fa-plus-minus mr-1"></i>Bonus / Deduction
+              </button>
+              <button onclick="openPayslipModal('${emp.id}')" class="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold shadow-xs">
+                <i class="fa-solid fa-file-invoice mr-1"></i>Payslip
+              </button>
+              <a href="https://wa.me/91${emp.phone.replace(/\D/g,'')}?text=${waText}" target="_blank" rel="noopener noreferrer"
+                class="px-3.5 py-2 rounded-xl bg-[#25D366] hover:bg-[#1ebe5d] text-white text-xs font-bold shadow-xs inline-flex items-center gap-1.5">
+                <i class="fa-brands fa-whatsapp text-sm"></i>WhatsApp
+              </a>
+            </div>
+          </div>
+
+          <!-- Live PagarBook Salary Breakdown Card -->
+          <div class="bg-slate-900 text-white rounded-2xl p-5 shadow-md">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-800">
+              <div>
+                <div class="text-xs uppercase tracking-wider text-amber-400 font-semibold">Live Salary Calculation Breakdown (${formatMonthLabel(ym)})</div>
+                <div class="text-xs text-slate-400 mt-0.5">Payable Days: <strong class="text-white">${pay.payableDays}</strong> • Daily Rate: <strong class="text-white">${formatINR(pay.dailyRate)}</strong> • Hourly OT Rate: <strong class="text-white">${formatINR(pay.hourlyRate)}/hr</strong></div>
+              </div>
+              <div class="text-right">
+                <div class="text-xs text-slate-400">Net Pending Balance</div>
+                <div class="text-2xl sm:text-3xl font-extrabold ${pay.netPending >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${formatINR(pay.netPending)}</div>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
+              <div class="bg-slate-800/80 rounded-xl p-3">
+                <div class="text-slate-400">Opening Bal</div>
+                <div class="text-base font-bold mt-1">${formatINR(pay.openingBalance)}</div>
+              </div>
+              <div class="bg-slate-800/80 rounded-xl p-3">
+                <div class="text-slate-400">Earned Days Pay</div>
+                <div class="text-base font-bold text-emerald-400 mt-1">+${formatINR(pay.earnedDaysPay)}</div>
+              </div>
+              <div class="bg-slate-800/80 rounded-xl p-3">
+                <div class="text-slate-400">Overtime (${pay.totalOtHours}h)</div>
+                <div class="text-base font-bold text-sky-400 mt-1">+${formatINR(pay.otPay)}</div>
+              </div>
+              <div class="bg-slate-800/80 rounded-xl p-3">
+                <div class="text-slate-400">Bonuses</div>
+                <div class="text-base font-bold text-amber-400 mt-1">+${formatINR(pay.bonuses)}</div>
+              </div>
+              <div class="bg-slate-800/80 rounded-xl p-3">
+                <div class="text-slate-400">Fines &amp; Deduct.</div>
+                <div class="text-base font-bold text-rose-400 mt-1">-${formatINR(pay.totalLateFines + pay.deductions)}</div>
+              </div>
+              <div class="bg-slate-800/80 rounded-xl p-3">
+                <div class="text-slate-400">Advances / Paid</div>
+                <div class="text-base font-bold text-rose-300 mt-1">-${formatINR(pay.advancesAndPayouts)}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Split View: Interactive Monthly Calendar + Running Salary Passbook -->
+          <div class="grid grid-cols-1 xl:grid-cols-12 gap-5">
+            <!-- Monthly Attendance Calendar -->
+            <div class="xl:col-span-6 bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs">
+              <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+                <div>
+                  <h3 class="font-bold text-slate-900 text-base">Monthly Attendance Calendar</h3>
+                  <p class="text-xs text-slate-500">Click any date to update status, OT hours, or late fine</p>
+                </div>
+                <div class="flex flex-wrap gap-1.5 text-[10px] font-bold">
+                  <span class="px-2 py-0.5 rounded bg-emerald-500 text-white">P</span>
+                  <span class="px-2 py-0.5 rounded bg-amber-400 text-slate-900">HD</span>
+                  <span class="px-2 py-0.5 rounded bg-rose-500 text-white">A</span>
+                  <span class="px-2 py-0.5 rounded bg-sky-500 text-white">PL</span>
+                  <span class="px-2 py-0.5 rounded bg-indigo-500 text-white">WO</span>
+                </div>
+              </div>
+              <div class="grid grid-cols-7 gap-1.5 text-center text-[11px] font-bold text-slate-400 mb-2">
+                <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+              </div>
+              <div class="grid grid-cols-7 gap-1.5">
+                ${calCells}
+              </div>
+            </div>
+
+            <!-- Running Salary Passbook (Khata) -->
+            <div class="xl:col-span-6 bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex flex-col">
+              <div class="flex items-center justify-between mb-4">
+                <div>
+                  <h3 class="font-bold text-slate-900 text-base">Salary Passbook (Khata Ledger)</h3>
+                  <p class="text-xs text-slate-500">All advances, salary payouts, bonuses &amp; deductions</p>
+                </div>
+              </div>
+              ${empLedger.length === 0 ? `
+                <div class="flex-1 flex flex-col items-center justify-center py-12 text-center text-slate-400">
+                  <i class="fa-solid fa-book-open text-3xl mb-2 opacity-40"></i>
+                  <p class="text-sm font-medium">No ledger transactions in ${formatMonthLabel(ym)}</p>
+                </div>
+              ` : `
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left border-collapse">
+                    <thead>
+                      <tr class="border-b border-slate-200 text-[11px] font-semibold uppercase text-slate-500">
+                        <th class="py-2 px-2">Date</th>
+                        <th class="py-2 px-2">Type &amp; Remarks</th>
+                        <th class="py-2 px-2">Mode</th>
+                        <th class="py-2 px-2 text-right">Amount</th>
+                        <th class="py-2 px-1"></th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-xs sm:text-sm">
+                      ${empLedger.map(tx => {
+                        const isCredit = tx.type === 'bonus';
+                        const badgeMap = {
+                          advance: 'bg-rose-50 text-rose-700',
+                          salary_payout: 'bg-sky-50 text-sky-700',
+                          bonus: 'bg-emerald-50 text-emerald-700',
+                          deduction: 'bg-amber-50 text-amber-800'
+                        };
+                        const labelMap = {
+                          advance: 'Advance',
+                          salary_payout: 'Salary Payout',
+                          bonus: 'Bonus',
+                          deduction: 'Deduction'
+                        };
+                        return `
+                          <tr class="hover:bg-slate-50">
+                            <td class="py-2.5 px-2 text-slate-500 whitespace-nowrap">${formatDateShort(tx.date)}</td>
+                            <td class="py-2.5 px-2">
+                              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${badgeMap[tx.type]}">${labelMap[tx.type]}</span>
+                              <div class="text-xs text-slate-700 mt-0.5">${escapeHTML(tx.remarks || '-')}</div>
+                            </td>
+                            <td class="py-2.5 px-2 text-xs text-slate-500">${escapeHTML(tx.mode)}</td>
+                            <td class="py-2.5 px-2 text-right font-bold whitespace-nowrap ${isCredit ? 'text-emerald-600' : 'text-rose-600'}">
+                              ${isCredit ? '+' : '-'}${formatINR(tx.amount)}
+                            </td>
+                            <td class="py-2.5 px-1 text-right">
+                              <button onclick="deleteLedgerEntry('${tx.id}')" title="Delete entry" class="text-slate-400 hover:text-rose-600 p-1">
+                                <i class="fa-solid fa-trash-can text-xs"></i>
+                              </button>
+                            </td>
+                          </tr>
+                        `;
+                      }).join('')}
+                    </tbody>
+                  </table>
+                </div>
+              `}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    /* ----- Sub-tab 3: Payroll Summary & Export (Muster Roll) ----- */
+    function renderPayrollSummaryTab() {
+      const ym = uiState.selectedMonth;
+      let totalNet = 0;
+
+      const rows = appData.employees.map(emp => {
+        const pay = calculateEmployeePayroll(emp, ym);
+        totalNet += pay.netPending;
+        return { emp, pay };
+      });
+
+      return `
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <div class="p-4 sm:p-5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 class="font-bold text-slate-900 text-base">Monthly Muster Roll &amp; Payroll Sheet (${formatMonthLabel(ym)})</h3>
+              <p class="text-xs text-slate-500">Complete HR payroll calculation ready for bank disbursement</p>
+            </div>
+            <button onclick="exportPayrollCSV()" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold shadow-xs flex items-center gap-2 transition-colors">
+              <i class="fa-solid fa-file-csv text-base"></i>
+              <span>Export to Excel (CSV)</span>
+            </button>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase text-slate-500">
+                  <th class="py-3 px-4">Employee</th>
+                  <th class="py-3 px-3">Type / Base</th>
+                  <th class="py-3 px-3 text-center">P / HD / A / PL-WO</th>
+                  <th class="py-3 px-3 text-right">Earned Pay</th>
+                  <th class="py-3 px-3 text-right">OT + Bonus</th>
+                  <th class="py-3 px-3 text-right">Fines / Ded.</th>
+                  <th class="py-3 px-3 text-right">Advances</th>
+                  <th class="py-3 px-4 text-right">Net Pending</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 text-sm">
+                ${rows.map(({ emp, pay }) => `
+                  <tr class="hover:bg-slate-50/80 cursor-pointer" onclick="openStaffProfile('${emp.id}')">
+                    <td class="py-3 px-4">
+                      <div class="font-bold text-slate-900">${escapeHTML(emp.name)}</div>
+                      <div class="text-xs text-slate-500">${escapeHTML(emp.role)}</div>
+                    </td>
+                    <td class="py-3 px-3 text-xs">
+                      <div class="font-semibold text-slate-800">${formatINR(emp.baseSalary)}</div>
+                      <div class="text-slate-500">${escapeHTML(emp.salaryType)}</div>
+                    </td>
+                    <td class="py-3 px-3 text-center text-xs font-semibold">
+                      <span class="text-emerald-600">${pay.countP}</span> /
+                      <span class="text-amber-600">${pay.countHD}</span> /
+                      <span class="text-rose-600">${pay.countA}</span> /
+                      <span class="text-sky-600">${pay.countPL + pay.countWO}</span>
+                    </td>
+                    <td class="py-3 px-3 text-right font-medium text-slate-800">${formatINR(pay.earnedDaysPay)}</td>
+                    <td class="py-3 px-3 text-right font-medium text-emerald-600">+${formatINR(pay.otPay + pay.bonuses)}</td>
+                    <td class="py-3 px-3 text-right font-medium text-rose-600">-${formatINR(pay.totalLateFines + pay.deductions)}</td>
+                    <td class="py-3 px-3 text-right font-medium text-slate-700">-${formatINR(pay.advancesAndPayouts)}</td>
+                    <td class="py-3 px-4 text-right font-extrabold ${pay.netPending >= 0 ? 'text-slate-900' : 'text-rose-600'}">${formatINR(pay.netPending)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+              <tfoot>
+                <tr class="bg-slate-900 text-white font-bold text-sm">
+                  <td colspan="7" class="py-3.5 px-4 text-right uppercase text-xs tracking-wider text-amber-400">Total Company Net Payable (${formatMonthLabel(ym)})</td>
+                  <td class="py-3.5 px-4 text-right text-base">${formatINR(totalNet)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    /* =========================================================================
+       8. MODULE 3: LEADS & WORK AUDIT
+       ========================================================================= */
+    function renderLeadsModule() {
+      const f = uiState.leadFilters;
+      const filtered = appData.leads.filter(l => {
+        if (f.source !== 'ALL' && l.source !== f.source) return false;
+        if (f.empId !== 'ALL' && l.assignedEmpId !== f.empId) return false;
+        if (f.stage !== 'ALL' && l.stage !== f.stage) return false;
+        if (f.search.trim()) {
+          const q = f.search.toLowerCase();
+          const match = l.customerName.toLowerCase().includes(q) || l.city.toLowerCase().includes(q) || l.phone.includes(q);
+          if (!match) return false;
+        }
+        return true;
+      });
+
+      const sourceColors = {
+        'Facebook Ads': 'bg-blue-50 text-blue-700 border-blue-200',
+        'Awareness Camp': 'bg-amber-50 text-amber-800 border-amber-200',
+        'Physical Marketing': 'bg-purple-50 text-purple-700 border-purple-200',
+        'Website': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        'Referral': 'bg-pink-50 text-pink-700 border-pink-200'
+      };
+
+      const stageColors = {
+        'New': 'bg-slate-100 text-slate-700',
+        'Site Visit': 'bg-sky-100 text-sky-800',
+        'Quotation Sent': 'bg-amber-100 text-amber-800',
+        'Won': 'bg-emerald-100 text-emerald-800',
+        'Lost': 'bg-rose-100 text-rose-800'
+      };
+
+      return `
+        <div class="space-y-5">
+          <!-- Top Actions & Filters -->
+          <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 class="font-bold text-slate-900 text-base">Lead Pipeline &amp; Employee Work Audit</h2>
+                <p class="text-xs text-slate-500">Track lead origins (Camps, Facebook, Physical Marketing) and convert Won deals into EPC Projects</p>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <button onclick="exportLeadsCSV()" class="px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center gap-1.5">
+                  <i class="fa-solid fa-download"></i>Export Leads (CSV)
+                </button>
+                <button onclick="openAddLeadModal()" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs sm:text-sm font-bold shadow-xs flex items-center gap-1.5">
+                  <i class="fa-solid fa-plus"></i>Add New Lead
+                </button>
+              </div>
+            </div>
+
+            <!-- Filter Bar -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-2 border-t border-slate-100">
+              <div class="relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" placeholder="Search customer, city, phone..." value="${escapeHTML(f.search)}"
+                  oninput="uiState.leadFilters.search=this.value; renderApp()"
+                  class="w-full pl-8 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              </div>
+
+              <select onchange="uiState.leadFilters.source=this.value; renderApp()" class="text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-medium">
+                <option value="ALL">All Lead Sources</option>
+                ${LEAD_SOURCES.map(s => `<option value="${s}" ${f.source === s ? 'selected' : ''}>${s}</option>`).join('')}
+              </select>
+
+              <select onchange="uiState.leadFilters.empId=this.value; renderApp()" class="text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-medium">
+                <option value="ALL">All Employees</option>
+                ${appData.employees.map(e => `<option value="${e.id}" ${f.empId === e.id ? 'selected' : ''}>${escapeHTML(e.name)}</option>`).join('')}
+              </select>
+
+              <select onchange="uiState.leadFilters.stage=this.value; renderApp()" class="text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-medium">
+                <option value="ALL">All Stages</option>
+                ${LEAD_STAGES.map(st => `<option value="${st}" ${f.stage === st ? 'selected' : ''}>${st}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+
+          <!-- Leads Audit Table -->
+          <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase text-slate-500">
+                    <th class="py-3 px-4">Customer &amp; Area</th>
+                    <th class="py-3 px-3">Source Audit</th>
+                    <th class="py-3 px-3">Generated By</th>
+                    <th class="py-3 px-3 text-center">Proposed kW</th>
+                    <th class="py-3 px-3">Stage</th>
+                    <th class="py-3 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-sm">
+                  ${filtered.length === 0 ? `
+                    <tr><td colspan="6" class="py-10 text-center text-slate-400 text-sm">No leads match your current filter.</td></tr>
+                  ` : filtered.map(l => {
+                    const emp = getEmployeeById(l.assignedEmpId);
+                    return `
+                      <tr class="hover:bg-slate-50/70 transition-colors">
+                        <td class="py-3.5 px-4">
+                          <div class="font-bold text-slate-900">${escapeHTML(l.customerName)}</div>
+                          <div class="text-xs text-slate-500"><i class="fa-solid fa-phone text-[10px] mr-1"></i>${escapeHTML(l.phone)} • ${escapeHTML(l.city)}</div>
+                          ${l.notes ? `<div class="text-[11px] text-slate-400 mt-0.5 max-w-xs truncate" title="${escapeHTML(l.notes)}">${escapeHTML(l.notes)}</div>` : ''}
+                        </td>
+                        <td class="py-3.5 px-3">
+                          <span class="inline-block text-[11px] font-semibold px-2.5 py-1 rounded-full border ${sourceColors[l.source] || 'bg-slate-100 text-slate-700'}">${escapeHTML(l.source)}</span>
+                          <div class="text-[10px] text-slate-400 mt-1">${escapeHTML(l.createdAt)}</div>
+                        </td>
+                        <td class="py-3.5 px-3">
+                          <div class="font-semibold text-slate-800 text-xs">${emp ? escapeHTML(emp.name) : 'Unassigned'}</div>
+                          <div class="text-[11px] text-slate-400">${emp ? escapeHTML(emp.role) : ''}</div>
+                        </td>
+                        <td class="py-3.5 px-3 text-center">
+                          <span class="font-extrabold text-amber-600">${l.kwCapacity} kW</span>
+                        </td>
+                        <td class="py-3.5 px-3">
+                          <select onchange="updateLeadStage('${l.id}', this.value)"
+                            class="text-xs font-bold px-2.5 py-1.5 rounded-lg border-0 cursor-pointer focus:ring-2 focus:ring-amber-500 ${stageColors[l.stage]}">
+                            ${LEAD_STAGES.map(st => `<option value="${st}" ${l.stage === st ? 'selected' : ''}>${st}</option>`).join('')}
+                          </select>
+                        </td>
+                        <td class="py-3.5 px-4 text-right whitespace-nowrap">
+                          ${l.convertedProjectId ? `
+                            <button onclick="navigateAdmin('projects')" class="px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-bold hover:bg-emerald-100">
+                              <i class="fa-solid fa-check mr-1"></i>In Projects
+                            </button>
+                          ` : l.stage === 'Won' ? `
+                            <button onclick="convertLeadToProject('${l.id}')" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-amber-500 hover:text-slate-950 text-white text-xs font-bold transition-colors">
+                              <i class="fa-solid fa-bolt mr-1"></i>Convert to Project
+                            </button>
+                          ` : `
+                            <button onclick="deleteLead('${l.id}')" class="text-slate-400 hover:text-rose-600 p-1.5" title="Delete Lead">
+                              <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                          `}
+                        </td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    /* =========================================================================
+       9. MODULE 4: SOLAR PROJECTS & 7-STAGE WORK TIMELINE
+       ========================================================================= */
+    function renderProjectsModule() {
+      return `
+        <div class="space-y-5">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 class="font-bold text-slate-900 text-base">Solar Installation Projects &amp; 7-Stage Work Timeline</h2>
+              <p class="text-xs text-slate-500">Click any timeline stage pill to mark complete/incomplete with live timestamps</p>
+            </div>
+            <button onclick="openProjectModal()" class="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs sm:text-sm font-bold shadow-xs flex items-center gap-2">
+              <i class="fa-solid fa-plus"></i>Add Solar Project
+            </button>
+          </div>
+
+          <div class="space-y-5">
+            ${appData.projects.map(p => {
+              const done = p.stages.filter(s => s.completed).length;
+              const pct = Math.round((done / p.stages.length) * 100);
+              const tech = getEmployeeById(p.technicianId);
+
+              return `
+                <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+                  <!-- Project Header & System Specs -->
+                  <div class="p-5 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <div>
+                      <div class="flex flex-wrap items-center gap-2">
+                        <h3 class="text-lg font-extrabold text-slate-900">${escapeHTML(p.customerName)}</h3>
+                        <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">${p.kwCapacity} kW • ${escapeHTML(p.systemType)}</span>
+                        <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">${escapeHTML(p.phase)}</span>
+                        <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700">${pct}% Complete</span>
+                      </div>
+                      <p class="text-xs text-slate-500 mt-1">
+                        <i class="fa-solid fa-location-dot mr-1"></i>${escapeHTML(p.city)} •
+                        <i class="fa-solid fa-file-contract ml-2 mr-1"></i>Quote Ref: <strong class="text-slate-700">${escapeHTML(p.quotationRef || 'N/A')}</strong> •
+                        <i class="fa-solid fa-helmet-safety ml-2 mr-1 text-amber-500"></i>Tech: <strong class="text-slate-700">${tech ? escapeHTML(tech.name) : 'Unassigned'}</strong>
+                      </p>
+                    </div>
+                    <button onclick="openProjectModal('${p.id}')" class="px-3.5 py-2 rounded-xl border border-slate-300 hover:bg-slate-50 text-xs font-bold text-slate-700 self-start lg:self-center">
+                      <i class="fa-solid fa-pen-to-square mr-1 text-amber-600"></i>Edit System Specs
+                    </button>
+                  </div>
+
+                  <!-- System Specs Grid -->
+                  <div class="px-5 py-3 bg-slate-50/80 border-b border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                    <div>
+                      <span class="text-slate-400 block">Solar Panels</span>
+                      <span class="font-bold text-slate-800">${escapeHTML(p.panelBrand)} (${p.panelCount} Nos)</span>
+                    </div>
+                    <div>
+                      <span class="text-slate-400 block">Inverter Details</span>
+                      <span class="font-bold text-slate-800">${escapeHTML(p.inverterDetails)}</span>
+                    </div>
+                    <div>
+                      <span class="text-slate-400 block">System Type &amp; Phase</span>
+                      <span class="font-bold text-slate-800">${escapeHTML(p.systemType)} / ${escapeHTML(p.phase)}</span>
+                    </div>
+                    <div>
+                      <span class="text-slate-400 block">Customer Contact</span>
+                      <span class="font-bold text-slate-800">${escapeHTML(p.phone || '-')}</span>
+                    </div>
+                  </div>
+
+                  <!-- Interactive 7-Stage Work Timeline -->
+                  <div class="p-5">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-2.5">
+                      ${p.stages.map((st, idx) => `
+                        <button onclick="toggleProjectStage('${p.id}', ${idx})"
+                          class="p-3 rounded-xl border text-left transition-all flex flex-col justify-between min-h-[86px] ${
+                            st.completed
+                              ? 'bg-emerald-50/90 border-emerald-300 text-emerald-950 hover:bg-emerald-100/70'
+                              : 'bg-white border-slate-200 text-slate-600 hover:border-amber-400 hover:bg-amber-50/30'
+                          }">
+                          <div class="flex items-center justify-between w-full mb-1.5">
+                            <span class="w-5 h-5 rounded-full text-[10px] font-extrabold flex items-center justify-center ${
+                              st.completed ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-600'
+                            }">
+                              ${st.completed ? '<i class="fa-solid fa-check"></i>' : idx + 1}
+                            </span>
+                            <span class="text-[10px] font-bold uppercase ${st.completed ? 'text-emerald-700' : 'text-slate-400'}">${st.completed ? 'Done' : 'Pending'}</span>
+                          </div>
+                          <div>
+                            <div class="text-xs font-bold leading-snug">${escapeHTML(st.name)}</div>
+                            <div class="text-[10px] mt-1 ${st.completed ? 'text-emerald-700' : 'text-slate-400'}">${st.completedAt ? escapeHTML(st.completedAt) : 'Tap to complete'}</div>
+                          </div>
+                        </button>
+                      `).join('')}
+                    </div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    /* =========================================================================
+       10. MODULE 5: EMPLOYEE SELF-SERVICE PORTAL (MOBILE VIEW)
+       ========================================================================= */
+    function renderEmployeePortal() {
+      const emp = getEmployeeById(uiState.portalEmpId) || appData.employees[0];
+      if (!emp) return `<div class="text-center py-12 text-slate-500">No staff members found.</div>`;
+
+      const todayISO = getTodayISO();
+      const ym = getCurrentYearMonth();
+      const todayRec = appData.attendance[`${emp.id}_${todayISO}`] || {};
+      const pay = calculateEmployeePayroll(emp, ym);
+
+      const isPunchedIn = Boolean(todayRec.punchIn && !todayRec.punchOut);
+      const isShiftDone = Boolean(todayRec.punchIn && todayRec.punchOut);
+
+      // Calendar for employee view
+      const [year, month] = ym.split('-').map(Number);
+      const daysInMonth = getDaysInMonth(ym);
+      const firstDay = new Date(year, month - 1, 1).getDay();
+      let miniCal = '';
+      for (let i = 0; i < firstDay; i++) miniCal += `<div></div>`;
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dISO = `${ym}-${String(d).padStart(2, '0')}`;
+        const rec = appData.attendance[`${emp.id}_${dISO}`];
+        const meta = rec?.status ? ATTENDANCE_META[rec.status] : null;
+        miniCal += `
+          <div class="h-9 rounded-lg flex flex-col items-center justify-center text-[10px] font-bold ${
+            meta ? meta.cal : 'bg-slate-100 text-slate-500'
+          }">
+            <span>${d}</span>
+            <span class="text-[8px] opacity-90">${rec?.status || ''}</span>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="max-w-md mx-auto space-y-4 pb-8">
+          <!-- Simulate Employee Login Selector -->
+          <div class="bg-slate-900 text-white rounded-2xl p-4 shadow-lg">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[11px] font-semibold uppercase tracking-wider text-amber-400">Simulate Staff Login</span>
+              <span class="text-[11px] text-slate-400"><i class="fa-solid fa-signal text-emerald-400 mr-1"></i>Field App</span>
+            </div>
+            <select onchange="uiState.portalEmpId=this.value; uiState.portalSelfiePreview=null; renderApp()"
+              class="w-full bg-slate-800 border border-slate-700 text-white text-sm font-bold rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500">
+              ${appData.employees.map(e => `<option value="${e.id}" ${e.id === emp.id ? 'selected' : ''}>${escapeHTML(e.name)} (${escapeHTML(e.role)})</option>`).join('')}
+            </select>
+          </div>
+
+          <!-- Live Clock & GPS + Selfie Punch Card -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm text-center space-y-4">
+            <div>
+              <div class="text-xs font-semibold text-slate-500">${new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}</div>
+              <div id="portal-live-clock" class="text-3xl font-extrabold text-slate-900 tracking-tight mt-0.5">--:--:--</div>
+              <div class="text-xs text-slate-400 mt-0.5">Shift: ${emp.shiftStart} – ${emp.shiftEnd}</div>
+            </div>
+
+            <!-- Selfie Upload / Camera Input -->
+            <div class="bg-slate-50 rounded-xl p-3 border border-dashed border-slate-300">
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3 text-left">
+                  <div class="w-12 h-12 rounded-xl bg-slate-200 overflow-hidden flex items-center justify-center shrink-0">
+                    ${uiState.portalSelfiePreview || todayRec.selfie
+                      ? `<img src="${uiState.portalSelfiePreview || todayRec.selfie}" alt="Selfie" class="w-full h-full object-cover" />`
+                      : `<i class="fa-solid fa-camera text-slate-400 text-lg"></i>`}
+                  </div>
+                  <div>
+                    <div class="text-xs font-bold text-slate-800">Site Selfie Verification</div>
+                    <div class="text-[11px] text-slate-500">Capture live photo for GPS punch</div>
+                  </div>
+                </div>
+                <label class="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-semibold cursor-pointer hover:bg-slate-800 shrink-0">
+                  <span>Camera</span>
+                  <input type="file" accept="image/*" capture="user" class="hidden" onchange="handlePortalSelfieUpload(event)" />
+                </label>
+              </div>
+            </div>
+
+            <!-- Punch Button -->
+            ${isShiftDone ? `
+              <div class="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold">
+                <i class="fa-solid fa-circle-check text-emerald-600 mr-1"></i>
+                Shift Completed! In: ${escapeHTML(todayRec.punchIn)} • Out: ${escapeHTML(todayRec.punchOut)}
+              </div>
+            ` : isPunchedIn ? `
+              <div class="space-y-2">
+                <div class="text-xs font-semibold text-emerald-700 bg-emerald-50 py-1.5 px-3 rounded-lg inline-block">
+                  <i class="fa-solid fa-location-dot mr-1"></i>Punched In at ${escapeHTML(todayRec.punchIn)} (${escapeHTML(todayRec.locationLabel || 'GPS Verified')})
+                </div>
+                <button onclick="handleEmployeePunch('${emp.id}', 'out')" class="w-full py-3.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-sm shadow-md shadow-rose-500/20 transition-all">
+                  <i class="fa-solid fa-right-from-bracket mr-2"></i>PUNCH OUT NOW
+                </button>
+              </div>
+            ` : `
+              <button onclick="handleEmployeePunch('${emp.id}', 'in')" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-extrabold text-sm shadow-md shadow-amber-500/25 transition-all">
+                <i class="fa-solid fa-fingerprint mr-2"></i>PUNCH IN WITH GPS &amp; SELFIE
+              </button>
+            `}
+          </div>
+
+          <!-- Employee Live Salary Khata Summary -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="font-bold text-slate-900 text-sm">My Salary Khata (${formatMonthLabel(ym)})</h3>
+              <span class="text-xs font-bold text-emerald-600">${pay.payableDays} Payable Days</span>
+            </div>
+            <div class="grid grid-cols-3 gap-2 text-center">
+              <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                <div class="text-[10px] text-slate-500 font-medium">Earned</div>
+                <div class="font-extrabold text-slate-900 text-sm mt-0.5">${formatINR(pay.grossEarned)}</div>
+              </div>
+              <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                <div class="text-[10px] text-slate-500 font-medium">Advances</div>
+                <div class="font-extrabold text-rose-600 text-sm mt-0.5">${formatINR(pay.advancesAndPayouts)}</div>
+              </div>
+              <div class="bg-emerald-50 p-2.5 rounded-xl border border-emerald-200">
+                <div class="text-[10px] text-emerald-700 font-semibold">Net Balance</div>
+                <div class="font-extrabold text-emerald-700 text-sm mt-0.5">${formatINR(pay.netPending)}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Employee Attendance Calendar -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+            <h3 class="font-bold text-slate-900 text-sm mb-3">My Attendance Calendar</h3>
+            <div class="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-400 mb-1.5">
+              <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
+            </div>
+            <div class="grid grid-cols-7 gap-1">
+              ${miniCal}
+            </div>
+          </div>
+
+          <!-- Quick Log Field Lead Form -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+            <div class="flex items-center gap-2 mb-3">
+              <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center"><i class="fa-solid fa-bolt"></i></div>
+              <div>
+                <h3 class="font-bold text-slate-900 text-sm">Quick Log Field Lead</h3>
+                <p class="text-[11px] text-slate-500">Auto-tagged to ${escapeHTML(emp.name)}</p>
+              </div>
+            </div>
+            <form onsubmit="submitPortalLead(event, '${emp.id}')" class="space-y-2.5">
+              <input name="customerName" required placeholder="Customer Name *" class="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5" />
+              <div class="grid grid-cols-2 gap-2">
+                <input name="phone" required placeholder="Phone *" class="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5" />
+                <input name="city" required placeholder="Area / City *" class="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5" />
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <select name="source" class="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 font-medium">
+                  ${LEAD_SOURCES.map(s => `<option value="${s}">${s}</option>`).join('')}
+                </select>
+                <input name="kwCapacity" type="number" min="1" step="0.5" value="3" required placeholder="kW Capacity" class="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5" />
+              </div>
+              <input name="notes" placeholder="Site notes (optional)" class="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5" />
+              <button type="submit" class="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold">
+                <i class="fa-solid fa-paper-plane mr-1.5 text-amber-400"></i>Submit Lead to CRM
+              </button>
+            </form>
+          </div>
+        </div>
+      `;
+    }
+
+    function startPortalLiveClock() {
+      const update = () => {
+        const el = document.getElementById('portal-live-clock');
+        if (el) el.textContent = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+      };
+      update();
+      uiState.liveClockInterval = setInterval(update, 1000);
+    }
+
+    /* =========================================================================
+       11. INTERACTIVE ACTIONS & MODALS
+       ========================================================================= */
+
+    // Attendance Status Update
+    function setAttendanceStatus(empId, dateStr, status) {
+      const key = `${empId}_${dateStr}`;
+      const existing = appData.attendance[key] || { empId, date: dateStr, otHours: 0, lateFine: 0, notes: '' };
+      appData.attendance[key] = { ...existing, status };
+      saveData();
+      renderApp();
+    }
+
+    function markAllPresent(dateStr) {
+      appData.employees.forEach(emp => {
+        const key = `${emp.id}_${dateStr}`;
+        const existing = appData.attendance[key] || { empId: emp.id, date: dateStr, otHours: 0, lateFine: 0, notes: '' };
+        appData.attendance[key] = { ...existing, status: 'P' };
+      });
+      saveData();
+      showToast(`Marked all staff Present for ${formatDateShort(dateStr)}`);
+      renderApp();
+    }
+
+    function openStaffProfile(empId) {
+      uiState.adminTab = 'payroll';
+      uiState.selectedStaffId = empId;
+      renderApp();
+    }
+
+    // Punch Verification Modal (GPS + Selfie)
+    function openPunchVerificationModal(empId, dateStr) {
+      const emp = getEmployeeById(empId);
+      const rec = appData.attendance[`${empId}_${dateStr}`];
+      if (!rec) return;
+
+      openModal(`
+        <div class="p-5 border-b border-slate-200 flex items-center justify-between">
+          <h3 class="font-bold text-slate-900">Punch Verification — ${escapeHTML(emp.name)}</h3>
+          <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        <div class="p-5 space-y-4 overflow-y-auto">
+          ${rec.selfie ? `
+            <div class="rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 max-h-60 flex items-center justify-center">
+              <img src="${rec.selfie}" alt="Employee Selfie" class="max-h-60 object-contain" />
+            </div>
+          ` : `
+            <div class="rounded-xl bg-slate-50 border border-slate-200 p-4 text-center text-xs text-slate-500">
+              <i class="fa-solid fa-camera-slash text-xl mb-1 block text-slate-400"></i>
+              No selfie attached for this entry
+            </div>
+          `}
+          <div class="grid grid-cols-2 gap-3 text-xs">
+            <div class="bg-slate-50 p-3 rounded-xl">
+              <div class="text-slate-400">Punch In</div>
+              <div class="font-bold text-slate-900 mt-0.5">${escapeHTML(rec.punchIn || '-')}</div>
+            </div>
+            <div class="bg-slate-50 p-3 rounded-xl">
+              <div class="text-slate-400">Punch Out</div>
+              <div class="font-bold text-slate-900 mt-0.5">${escapeHTML(rec.punchOut || 'On Duty')}</div>
+            </div>
+          </div>
+          ${rec.lat && rec.lng ? `
+            <div class="bg-sky-50 border border-sky-200 rounded-xl p-3.5 flex items-center justify-between gap-2">
+              <div class="text-xs">
+                <div class="font-bold text-sky-900">${escapeHTML(rec.locationLabel || 'GPS Coordinates')}</div>
+                <div class="text-sky-700 mt-0.5">${Number(rec.lat).toFixed(5)}, ${Number(rec.lng).toFixed(5)}</div>
+              </div>
+              <a href="https://www.google.com/maps?q=${rec.lat},${rec.lng}" target="_blank" rel="noopener noreferrer"
+                class="px-3 py-1.5 rounded-lg bg-sky-600 text-white text-xs font-bold hover:bg-sky-700">
+                Open Map <i class="fa-solid fa-arrow-up-right-from-square ml-1"></i>
+              </a>
+            </div>
+          ` : ''}
+        </div>
+      `);
+    }
+
+    // OT & Late Fine Modal (also used for clicking a calendar day)
+    function openOtFineModal(empId, dateStr) {
+      openEditDayModal(empId, dateStr);
+    }
+
+    function openEditDayModal(empId, dateStr) {
+      const emp = getEmployeeById(empId);
+      const rec = appData.attendance[`${empId}_${dateStr}`] || { status: 'P', otHours: 0, lateFine: 0, notes: '' };
+      const pay = calculateEmployeePayroll(emp, dateStr.slice(0, 7));
+
+      openModal(`
+        <div class="p-5 border-b border-slate-200 flex items-center justify-between">
+          <div>
+            <h3 class="font-bold text-slate-900">Edit Attendance, OT &amp; Fine</h3>
+            <p class="text-xs text-slate-500">${escapeHTML(emp.name)} • ${formatDateShort(dateStr)}</p>
+          </div>
+          <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        <form onsubmit="saveDayModal(event, '${empId}', '${dateStr}')" class="p-5 space-y-4 overflow-y-auto">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">Attendance Status</label>
+            <select name="status" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 font-semibold">
+              ${['P', 'HD', 'A', 'PL', 'WO'].map(st => `<option value="${st}" ${rec.status === st ? 'selected' : ''}>${st} - ${ATTENDANCE_META[st].label}</option>`).join('')}
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Overtime (Hours)</label>
+              <input id="modal-ot-hours" name="otHours" type="number" min="0" step="0.5" value="${rec.otHours || 0}"
+                oninput="document.getElementById('modal-ot-preview').textContent = formatINR(this.value * ${pay.hourlyRate})"
+                class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5" />
+              <div class="text-[11px] text-emerald-600 font-semibold mt-1">Auto OT Pay: <span id="modal-ot-preview">${formatINR((rec.otHours || 0) * pay.hourlyRate)}</span> (${formatINR(pay.hourlyRate)}/hr)</div>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Late Fine (₹)</label>
+              <input name="lateFine" type="number" min="0" step="10" value="${rec.lateFine || 0}"
+                class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Notes / Remarks</label>
+            <input name="notes" value="${escapeHTML(rec.notes || '')}" placeholder="e.g., Site commissioning OT, Late arrival"
+              class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5" />
+          </div>
+          <div class="flex justify-end gap-2 pt-2">
+            <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600">Cancel</button>
+            <button type="submit" class="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold">Save Changes</button>
+          </div>
+        </form>
+      `);
+    }
+
+    function saveDayModal(e, empId, dateStr) {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const key = `${empId}_${dateStr}`;
+      const existing = appData.attendance[key] || { empId, date: dateStr };
+      appData.attendance[key] = {
+        ...existing,
+        status: fd.get('status'),
+        otHours: Number(fd.get('otHours')) || 0,
+        lateFine: Number(fd.get('lateFine')) || 0,
+        notes: fd.get('notes').trim()
+      };
+      saveData();
+      closeModal();
+      showToast('Attendance & OT/Fine updated');
+      renderApp();
+    }
+
+    // Add Staff Modal
+    function openAddStaffModal() {
+      openModal(`
+        <div class="p-5 border-b border-slate-200 flex items-center justify-between">
+          <h3 class="font-bold text-slate-900">Onboard New Staff Member</h3>
+          <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        <form onsubmit="saveNewStaff(event)" class="p-5 space-y-3.5 overflow-y-auto">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Full Name *</label>
+              <input name="name" required placeholder="e.g., Rohit Shinde" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Phone Number *</label>
+              <input name="phone" required placeholder="10-digit mobile" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" />
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Role</label>
+              <select name="role" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                <option>Sales</option><option>Technician</option><option>Field Marketing</option><option>Office</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Salary Type</label>
+              <select name="salaryType" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                <option>Monthly</option><option>Daily</option><option>Hourly</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Base Salary (₹) *</label>
+              <input name="baseSalary" type="number" required min="1" placeholder="25000" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Opening Balance (₹)</label>
+              <input name="openingBalance" type="number" value="0" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" />
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Shift Start</label>
+              <input name="shiftStart" type="time" value="09:30" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Shift End</label>
+              <input name="shiftEnd" type="time" value="18:30" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" />
+            </div>
+          </div>
+          <div class="flex justify-end gap-2 pt-2">
+            <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600">Cancel</button>
+            <button type="submit" class="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold">Add Staff</button>
+          </div>
+        </form>
+      `);
+    }
+
+    function saveNewStaff(e) {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      appData.employees.push({
+        id: 'emp_' + Date.now(),
+        name: fd.get('name').trim(),
+        phone: fd.get('phone').trim(),
+        role: fd.get('role'),
+        salaryType: fd.get('salaryType'),
+        baseSalary: Number(fd.get('baseSalary')) || 0,
+        openingBalance: Number(fd.get('openingBalance')) || 0,
+        shiftStart: fd.get('shiftStart'),
+        shiftEnd: fd.get('shiftEnd')
+      });
+      saveData();
+      closeModal();
+      showToast('New staff member onboarded!');
+      renderApp();
+    }
+
+    // Ledger Entry Modal (Advance / Payout / Bonus / Deduction)
+    function openLedgerEntryModal(empId, category) {
+      const emp = getEmployeeById(empId);
+      const isPayout = category === 'payout';
+      openModal(`
+        <div class="p-5 border-b border-slate-200 flex items-center justify-between">
+          <div>
+            <h3 class="font-bold text-slate-900">${isPayout ? 'Give Advance / Pay Salary' : 'Add Bonus / Deduction'}</h3>
+            <p class="text-xs text-slate-500">${escapeHTML(emp.name)}</p>
+          </div>
+          <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        <form onsubmit="saveLedgerEntry(event, '${empId}')" class="p-5 space-y-3.5">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Entry Type</label>
+              <select name="type" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                ${isPayout
+                  ? `<option value="advance">Cash / Salary Advance</option><option value="salary_payout">Salary Payout</option>`
+                  : `<option value="bonus">Bonus / Sales Incentive</option><option value="deduction">Other Deduction</option>`}
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Date</label>
+              <input name="date" type="date" value="${getTodayISO()}" required class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" />
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Amount (₹) *</label>
+              <input name="amount" type="number" min="1" required placeholder="2000" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Payment Mode</label>
+              <select name="mode" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                <option>UPI</option><option>Cash</option><option>Bank</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Remarks</label>
+            <input name="remarks" placeholder="e.g., Festival advance, Solar installation bonus" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" />
+          </div>
+          <div class="flex justify-end gap-2 pt-2">
+            <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600">Cancel</button>
+            <button type="submit" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">Record Entry</button>
+          </div>
+        </form>
+      `);
+    }
+
+    function saveLedgerEntry(e, empId) {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      appData.ledger.push({
+        id: 'tx_' + Date.now(),
+        empId,
+        date: fd.get('date'),
+        type: fd.get('type'),
+        amount: Number(fd.get('amount')) || 0,
+        mode: fd.get('mode'),
+        remarks: fd.get('remarks').trim()
+      });
+      saveData();
+      closeModal();
+      showToast('Passbook ledger updated');
+      renderApp();
+    }
+
+    function deleteLedgerEntry(txId) {
+      appData.ledger = appData.ledger.filter(t => t.id !== txId);
+      saveData();
+      showToast('Ledger entry removed', 'info');
+      renderApp();
+    }
+
+    // Printable Payslip Modal
+    function openPayslipModal(empId) {
+      const emp = getEmployeeById(empId);
+      const ym = uiState.selectedMonth;
+      const pay = calculateEmployeePayroll(emp, ym);
+
+      openModal(`
+        <div id="payslip-printable" class="p-6 space-y-5 overflow-y-auto bg-white">
+          <div class="flex items-start justify-between border-b-2 border-slate-900 pb-4">
+            <div>
+              <div class="text-lg font-extrabold text-slate-900 tracking-tight">SOLECTRIK ENERGY</div>
+              <div class="text-xs text-slate-500">Solar EPC &amp; Renewable Solutions • Pune, Maharashtra</div>
+            </div>
+            <div class="text-right">
+              <div class="text-xs font-bold uppercase tracking-wider text-amber-600">Salary Payslip</div>
+              <div class="text-sm font-bold text-slate-900">${formatMonthLabel(ym)}</div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 text-xs bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+            <div><span class="text-slate-500">Employee:</span> <strong class="text-slate-900">${escapeHTML(emp.name)}</strong></div>
+            <div><span class="text-slate-500">Role:</span> <strong class="text-slate-900">${escapeHTML(emp.role)}</strong></div>
+            <div><span class="text-slate-500">Phone:</span> <strong class="text-slate-900">${escapeHTML(emp.phone)}</strong></div>
+            <div><span class="text-slate-500">Pay Structure:</span> <strong class="text-slate-900">${emp.salaryType} (${formatINR(emp.baseSalary)})</strong></div>
+            <div><span class="text-slate-500">Payable Days:</span> <strong class="text-slate-900">${pay.payableDays} / ${pay.daysInMonth}</strong></div>
+            <div><span class="text-slate-500">Attendance:</span> <strong class="text-slate-900">P:${pay.countP} HD:${pay.countHD} A:${pay.countA}</strong></div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            <div class="border border-slate-200 rounded-xl overflow-hidden">
+              <div class="bg-emerald-50 text-emerald-800 font-bold px-3 py-2 border-b border-emerald-100">Earnings</div>
+              <div class="p-3 space-y-2">
+                <div class="flex justify-between"><span>Earned Days Pay</span><strong>${formatINR(pay.earnedDaysPay)}</strong></div>
+                <div class="flex justify-between"><span>Overtime (${pay.totalOtHours}h)</span><strong>${formatINR(pay.otPay)}</strong></div>
+                <div class="flex justify-between"><span>Bonuses / Incentives</span><strong>${formatINR(pay.bonuses)}</strong></div>
+                <div class="flex justify-between"><span>Opening Balance</span><strong>${formatINR(pay.openingBalance)}</strong></div>
+              </div>
+            </div>
+            <div class="border border-slate-200 rounded-xl overflow-hidden">
+              <div class="bg-rose-50 text-rose-800 font-bold px-3 py-2 border-b border-rose-100">Deductions &amp; Advances</div>
+              <div class="p-3 space-y-2">
+                <div class="flex justify-between"><span>Late Fines</span><strong>${formatINR(pay.totalLateFines)}</strong></div>
+                <div class="flex justify-between"><span>Other Deductions</span><strong>${formatINR(pay.deductions)}</strong></div>
+                <div class="flex justify-between"><span>Advances / Paid</span><strong>${formatINR(pay.advancesAndPayouts)}</strong></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-slate-900 text-white rounded-xl p-4 flex items-center justify-between">
+            <div>
+              <div class="text-xs text-amber-400 font-semibold uppercase">Net Payable Balance</div>
+              <div class="text-[11px] text-slate-400">Generated on ${formatDateShort(getTodayISO())}</div>
+            </div>
+            <div class="text-2xl font-extrabold">${formatINR(pay.netPending)}</div>
+          </div>
+
+          <div class="flex justify-end gap-2 pt-2 no-print">
+            <button onclick="closeModal()" class="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600">Close</button>
+            <button onclick="window.print()" class="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold">
+              <i class="fa-solid fa-print mr-1.5"></i>Print / Save PDF
+            </button>
+          </div>
+        </div>
+      `, 'max-w-2xl');
+    }
+
+    // Add New Lead Modal
+    function openAddLeadModal() {
+      openModal(`
+        <div class="p-5 border-b border-slate-200 flex items-center justify-between">
+          <h3 class="font-bold text-slate-900">Add New Solar Lead</h3>
+          <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        <form onsubmit="saveNewLead(event)" class="p-5 space-y-3.5 overflow-y-auto">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Customer Name *</label>
+              <input name="customerName" required class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Phone *</label>
+              <input name="phone" required class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" />
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">City / Area *</label>
+              <input name="city" required placeholder="e.g., Wakad, Pune" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Proposed Capacity (kW) *</label>
+              <input name="kwCapacity" type="number" min="1" step="0.5" value="5" required class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" />
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Lead Source</label>
+              <select name="source" class="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2.5">
+                ${LEAD_SOURCES.map(s => `<option>${s}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Assigned Staff</label>
+              <select name="assignedEmpId" class="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2.5">
+                ${appData.employees.map(e => `<option value="${e.id}">${escapeHTML(e.name)}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Stage</label>
+              <select name="stage" class="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2.5">
+                ${LEAD_STAGES.map(st => `<option>${st}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Notes</label>
+            <textarea name="notes" rows="2" placeholder="Roof type, monthly bill, subsidy requirement..." class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2"></textarea>
+          </div>
+          <div class="flex justify-end gap-2 pt-2">
+            <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600">Cancel</button>
+            <button type="submit" class="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold">Save Lead</button>
+          </div>
+        </form>
+      `);
+    }
+
+    function saveNewLead(e) {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      appData.leads.unshift({
+        id: 'lead_' + Date.now(),
+        customerName: fd.get('customerName').trim(),
+        phone: fd.get('phone').trim(),
+        city: fd.get('city').trim(),
+        source: fd.get('source'),
+        assignedEmpId: fd.get('assignedEmpId'),
+        kwCapacity: Number(fd.get('kwCapacity')) || 3,
+        stage: fd.get('stage'),
+        notes: fd.get('notes').trim(),
+        createdAt: `${getTodayISO()} ${formatTimeNow()}`,
+        convertedProjectId: null
+      });
+      saveData();
+      closeModal();
+      showToast('Lead added to work audit log');
+      renderApp();
+    }
+
+    function updateLeadStage(leadId, newStage) {
+      const lead = appData.leads.find(l => l.id === leadId);
+      if (!lead) return;
+      lead.stage = newStage;
+      saveData();
+      showToast(`Lead stage updated to ${newStage}`);
+      renderApp();
+    }
+
+    function deleteLead(leadId) {
+      appData.leads = appData.leads.filter(l => l.id !== leadId);
+      saveData();
+      showToast('Lead deleted', 'info');
+      renderApp();
+    }
+
+    function convertLeadToProject(leadId) {
+      const lead = appData.leads.find(l => l.id === leadId);
+      if (!lead || lead.convertedProjectId) return;
+      const tech = appData.employees.find(e => e.role === 'Technician') || appData.employees[0];
+      const newProjId = 'proj_' + Date.now();
+      const panelCount = Math.max(2, Math.ceil((lead.kwCapacity * 1000) / 540));
+
+      appData.projects.unshift({
+        id: newProjId,
+        leadId: lead.id,
+        customerName: lead.customerName,
+        city: lead.city,
+        phone: lead.phone,
+        kwCapacity: lead.kwCapacity,
+        systemType: 'On-Grid',
+        panelBrand: 'Waaree Mono PERC 540W',
+        panelCount,
+        inverterDetails: `Growatt ${lead.kwCapacity}kW`,
+        phase: lead.kwCapacity >= 5 ? '3-Phase' : '1-Phase',
+        quotationRef: `SOL-QT-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 899)}`,
+        technicianId: tech?.id || '',
+        stages: PROJECT_STAGE_NAMES.map((name, idx) => ({
+          name,
+          completed: idx === 0,
+          completedAt: idx === 0 ? `${formatDateShort(getTodayISO())}, ${formatTimeNow()}` : null
+        }))
+      });
+
+      lead.convertedProjectId = newProjId;
+      saveData();
+      showToast(`${lead.customerName} converted to Solar Project!`);
+      navigateAdmin('projects');
+    }
+
+    // Add / Edit Solar Project Modal
+    function openProjectModal(projId = null) {
+      const proj = projId ? appData.projects.find(p => p.id === projId) : null;
+      openModal(`
+        <div class="p-5 border-b border-slate-200 flex items-center justify-between">
+          <h3 class="font-bold text-slate-900">${proj ? 'Edit Solar System Specs' : 'Add New Solar Project'}</h3>
+          <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        <form onsubmit="saveProjectModal(event, '${projId || ''}')" class="p-5 space-y-3.5 overflow-y-auto">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Customer Name *</label>
+              <input name="customerName" required value="${escapeHTML(proj?.customerName || '')}" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">City / Site Area *</label>
+              <input name="city" required value="${escapeHTML(proj?.city || '')}" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" />
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Capacity (kW) *</label>
+              <input name="kwCapacity" type="number" step="0.5" required value="${proj?.kwCapacity || 5}" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">System Type</label>
+              <select name="systemType" class="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2.5">
+                ${['On-Grid', 'Off-Grid', 'Hybrid'].map(t => `<option ${proj?.systemType === t ? 'selected' : ''}>${t}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Phase</label>
+              <select name="phase" class="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2.5">
+                ${['1-Phase', '3-Phase'].map(ph => `<option ${proj?.phase === ph ? 'selected' : ''}>${ph}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Panel Brand &amp; Wattage</label>
+              <input name="panelBrand" value="${escapeHTML(proj?.panelBrand || 'Waaree Mono PERC 540W')}" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Panel Count</label>
+              <input name="panelCount" type="number" value="${proj?.panelCount || 10}" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" />
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Inverter Details</label>
+              <input name="inverterDetails" value="${escapeHTML(proj?.inverterDetails || 'Growatt 5kW 3-Phase')}" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Quotation Ref #</label>
+              <input name="quotationRef" value="${escapeHTML(proj?.quotationRef || 'SOL-QT-2026-')}" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" />
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Customer Phone</label>
+              <input name="phone" value="${escapeHTML(proj?.phone || '')}" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Assigned Technician</label>
+              <select name="technicianId" class="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2.5">
+                ${appData.employees.map(e => `<option value="${e.id}" ${proj?.technicianId === e.id ? 'selected' : ''}>${escapeHTML(e.name)} (${escapeHTML(e.role)})</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div class="flex justify-end gap-2 pt-2">
+            <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600">Cancel</button>
+            <button type="submit" class="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold">Save Project</button>
+          </div>
+        </form>
+      `);
+    }
+
+    function saveProjectModal(e, projId) {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const payload = {
+        customerName: fd.get('customerName').trim(),
+        city: fd.get('city').trim(),
+        phone: fd.get('phone').trim(),
+        kwCapacity: Number(fd.get('kwCapacity')) || 3,
+        systemType: fd.get('systemType'),
+        phase: fd.get('phase'),
+        panelBrand: fd.get('panelBrand').trim(),
+        panelCount: Number(fd.get('panelCount')) || 6,
+        inverterDetails: fd.get('inverterDetails').trim(),
+        quotationRef: fd.get('quotationRef').trim(),
+        technicianId: fd.get('technicianId')
+      };
+
+      if (projId) {
+        const idx = appData.projects.findIndex(p => p.id === projId);
+        if (idx !== -1) appData.projects[idx] = { ...appData.projects[idx], ...payload };
+        showToast('Project specs updated');
+      } else {
+        appData.projects.unshift({
+          id: 'proj_' + Date.now(),
+          leadId: null,
+          ...payload,
+          stages: PROJECT_STAGE_NAMES.map(name => ({ name, completed: false, completedAt: null }))
+        });
+        showToast('New solar project created');
+      }
+      saveData();
+      closeModal();
+      renderApp();
+    }
+
+    function toggleProjectStage(projId, stageIdx) {
+      const proj = appData.projects.find(p => p.id === projId);
+      if (!proj) return;
+      const st = proj.stages[stageIdx];
+      st.completed = !st.completed;
+      st.completedAt = st.completed ? `${formatDateShort(getTodayISO())}, ${formatTimeNow()}` : null;
+      saveData();
+      renderApp();
+    }
+
+    /* =========================================================================
+       12. EMPLOYEE PORTAL ACTIONS (GPS, SELFIE RESIZE, QUICK LEAD)
+       ========================================================================= */
+    function handlePortalSelfieUpload(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        // Resize image to lightweight thumbnail so localStorage never overflows
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxDim = 220;
+          let w = img.width, h = img.height;
+          if (w > h && w > maxDim) { h = (h * maxDim) / w; w = maxDim; }
+          else if (h > maxDim) { w = (w * maxDim) / h; h = maxDim; }
+          canvas.width = w;
+          canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          uiState.portalSelfiePreview = canvas.toDataURL('image/jpeg', 0.65);
+          showToast('Selfie captured! Ready to Punch In.', 'info');
+          renderApp();
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function handleEmployeePunch(empId, direction) {
+      const todayISO = getTodayISO();
+      const key = `${empId}_${todayISO}`;
+      const timeNow = formatTimeNow();
+
+      const commitPunch = (lat, lng, label) => {
+        const existing = appData.attendance[key] || { empId, date: todayISO, status: 'P', otHours: 0, lateFine: 0, notes: '' };
+        if (direction === 'in') {
+          appData.attendance[key] = {
+            ...existing,
+            status: 'P',
+            punchIn: timeNow,
+            lat,
+            lng,
+            locationLabel: label,
+            selfie: uiState.portalSelfiePreview || existing.selfie || null
+          };
+          uiState.portalSelfiePreview = null;
+          showToast(`Punched In at ${timeNow} (${label})`);
+        } else {
+          appData.attendance[key] = {
+            ...existing,
+            punchOut: timeNow
+          };
+          showToast(`Punched Out at ${timeNow}. Great work today!`);
+        }
+        saveData();
+        renderApp();
+      };
+
+      // Capture real Geolocation with graceful fallback to Pune/Nagpur coordinates
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => commitPunch(pos.coords.latitude, pos.coords.longitude, 'Live GPS Verified'),
+          () => commitPunch(18.5204 + (Math.random() * 0.02 - 0.01), 73.8567 + (Math.random() * 0.02 - 0.01), 'Pune Site (Fallback GPS)'),
+          { timeout: 3500 }
+        );
+      } else {
+        commitPunch(18.5204, 73.8567, 'Pune Site (Fallback GPS)');
+      }
+    }
+
+    function submitPortalLead(e, empId) {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      appData.leads.unshift({
+        id: 'lead_' + Date.now(),
+        customerName: fd.get('customerName').trim(),
+        phone: fd.get('phone').trim(),
+        city: fd.get('city').trim(),
+        source: fd.get('source'),
+        assignedEmpId: empId,
+        kwCapacity: Number(fd.get('kwCapacity')) || 3,
+        stage: 'New',
+        notes: fd.get('notes').trim(),
+        createdAt: `${getTodayISO()} ${formatTimeNow()}`,
+        convertedProjectId: null
+      });
+      saveData();
+      e.target.reset();
+      showToast('Field lead logged and synced to Admin CRM!');
+    }
+
+    /* =========================================================================
+       13. CSV EXPORTS & RESET DEMO DATA
+       ========================================================================= */
+    function downloadCSV(filename, rows) {
+      const csv = rows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function exportPayrollCSV() {
+      const ym = uiState.selectedMonth;
+      const headers = ['Employee Name', 'Phone', 'Role', 'Salary Type', 'Base Salary (INR)', 'Present', 'Half Day', 'Absent', 'PL/WO', 'Payable Days', 'Earned Pay', 'OT Hours', 'OT Pay', 'Bonuses', 'Late Fines', 'Deductions', 'Advances/Paid', 'Opening Balance', 'Net Pending (INR)'];
+      const rows = [headers];
+      appData.employees.forEach(emp => {
+        const p = calculateEmployeePayroll(emp, ym);
+        rows.push([
+          emp.name, emp.phone, emp.role, emp.salaryType, emp.baseSalary,
+          p.countP, p.countHD, p.countA, p.countPL + p.countWO, p.payableDays,
+          p.earnedDaysPay, p.totalOtHours, p.otPay, p.bonuses,
+          p.totalLateFines, p.deductions, p.advancesAndPayouts, p.openingBalance, p.netPending
+        ]);
+      });
+      downloadCSV(`Solectrik_Payroll_${ym}.csv`, rows);
+      showToast(`Exported Solectrik_Payroll_${ym}.csv`);
+    }
+
+    function exportLeadsCSV() {
+      const headers = ['Customer Name', 'Phone', 'City/Area', 'Lead Source', 'Generated By', 'Proposed kW', 'Stage', 'Logged At', 'Notes'];
+      const rows = [headers];
+      appData.leads.forEach(l => {
+        const emp = getEmployeeById(l.assignedEmpId);
+        rows.push([l.customerName, l.phone, l.city, l.source, emp ? emp.name : '', l.kwCapacity, l.stage, l.createdAt, l.notes]);
+      });
+      downloadCSV(`Solectrik_Leads_Audit_${getTodayISO()}.csv`, rows);
+      showToast('Exported Leads Audit CSV');
+    }
+
+    function openResetConfirmModal() {
+      openModal(`
+        <div class="p-6 text-center space-y-4">
+          <div class="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto text-xl">
+            <i class="fa-solid fa-rotate-left"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-900 text-lg">Reset Demo Data?</h3>
+            <p class="text-xs text-slate-500 mt-1">This will restore the default 5 Solectrik Energy staff members, attendance logs, leads, and 3 rooftop solar projects.</p>
+          </div>
+          <div class="flex justify-center gap-2 pt-2">
+            <button onclick="closeModal()" class="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600">Cancel</button>
+            <button onclick="confirmResetDemoData()" class="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold">Yes, Reset Data</button>
+          </div>
+        </div>
+      `, 'max-w-sm');
+    }
+
+    function confirmResetDemoData() {
+      appData = buildDemoData();
+      saveData();
+      uiState.selectedStaffId = null;
+      uiState.portalEmpId = appData.employees[0].id;
+      closeModal();
+      showToast('Demo data restored cleanly');
+      renderApp();
+    }
+
+    /* =========================================================================
+       14. BOOTSTRAP APPLICATION
+       ========================================================================= */
+    window.addEventListener('DOMContentLoaded', () => {
+      renderApp();
+    });
+  </script>
+</body>
+</html>
